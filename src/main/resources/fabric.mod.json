@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "hoofprint",
+  "version": "${version}",
+  "name": "Hoofprint",
+  "description": "A barebones surveyor-powered minecraft world map.",
+  "authors": [
+    "Garden System"
+  ],
+  "contributors": [
+    "Sisby folk"
+  ],
+  "contact": {
+    "homepage": "https://modrinth.com/mod/hoofprint",
+    "issues": "https://github.com/HestiMae/hoofprint/issues",
+    "sources": "https://github.com/HestiMae/hoofprint"
+  },
+  "icon": "assets/hoofprint/icon.png",
+  "license": "LGPL-3.0-only",
+  "entrypoints": {
+    "client": [
+      "garden.hestia.hoofprint.Hoofprint"
+    ]
+  },
+  "depends": {
+    "minecraft": ">=${mc}",
+    "fabricloader": ">=${fl}",
+    "fabric-api": ">=${fapi}",
+    "surveyor": ">=${surveyor}"
+  }
+}
