@@ -5,6 +5,7 @@ import folk.sisby.surveyor.client.SurveyorClientEvents;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.Identifier;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 public class Hoofprint implements ClientModInitializer {
     public static final String ID = "hoofprint";
     public static final Logger LOGGER = LoggerFactory.getLogger(ID);
+    public static final HoofprintConfig CONFIG = HoofprintConfig.createToml(FabricLoader.getInstance().getConfigDir(), "", ID, HoofprintConfig.class);
     public static final KeyBinding OPEN_MAP = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hoofprint.open", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_M, "category.hoofprint"));
 
     @Override
