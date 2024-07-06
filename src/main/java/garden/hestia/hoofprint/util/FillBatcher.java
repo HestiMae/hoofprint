@@ -22,10 +22,10 @@ public class FillBatcher implements AutoCloseable {
         float g = (float)ColorHelper.Argb.getRed(color) / 255.0F;
         float h = (float)ColorHelper.Argb.getGreen(color) / 255.0F;
         float j = (float)ColorHelper.Argb.getBlue(color) / 255.0F;
-        vertexConsumer.vertex(matrix4f, (float)x1, (float)y1, (float)z).color(g, h, j, f).next();
-        vertexConsumer.vertex(matrix4f, (float)x1, (float)y2, (float)z).color(g, h, j, f).next();
-        vertexConsumer.vertex(matrix4f, (float)x2, (float)y2, (float)z).color(g, h, j, f).next();
-        vertexConsumer.vertex(matrix4f, (float)x2, (float)y1, (float)z).color(g, h, j, f).next();
+        vertexConsumer.vertex(matrix4f, (float)x1, (float)y1, (float)z).color(g, h, j, f);
+        vertexConsumer.vertex(matrix4f, (float)x1, (float)y2, (float)z).color(g, h, j, f);
+        vertexConsumer.vertex(matrix4f, (float)x2, (float)y2, (float)z).color(g, h, j, f);
+        vertexConsumer.vertex(matrix4f, (float)x2, (float)y1, (float)z).color(g, h, j, f);
     }
 
     @Override

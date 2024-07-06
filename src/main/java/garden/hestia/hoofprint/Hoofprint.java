@@ -31,14 +31,14 @@ public class Hoofprint implements ClientModInitializer {
             }
         });
 
-        SurveyorClientEvents.Register.worldLoad(new Identifier(ID, "world_load"), (world, summary, player, terrain, structures, landmarks) -> {
+        SurveyorClientEvents.Register.worldLoad(Identifier.of(ID, "world_load"), (world, summary, player, terrain, structures, landmarks) -> {
             HoofprintMapStorage.get(world.getRegistryKey()).worldLoad(world, summary, player, terrain, structures, landmarks);
         });
 
-        SurveyorClientEvents.Register.terrainUpdated(new Identifier(ID, "terrain_updated"), (world, summary, chunks) -> {
+        SurveyorClientEvents.Register.terrainUpdated(Identifier.of(ID, "terrain_updated"), (world, summary, chunks) -> {
             HoofprintMapStorage.get(world.getRegistryKey()).terrainUpdated(world, summary, chunks);
         });
-        SurveyorClientEvents.Register.landmarksAdded(new Identifier(ID, "landmarks_added"), (world, worldLandmarks, landmarks) -> {
+        SurveyorClientEvents.Register.landmarksAdded(Identifier.of(ID, "landmarks_added"), (world, worldLandmarks, landmarks) -> {
             HoofprintMapStorage.get(world.getRegistryKey()).landmarksAdded(world, worldLandmarks, landmarks);
         });
 
