@@ -21,6 +21,7 @@ public class Hoofprint implements ClientModInitializer {
     public void onInitializeClient() {
         WorldSummary.enableTerrain();
         WorldSummary.enableLandmarks();
+        WorldSummary.enableStructures();
         ClientTickEvents.END_CLIENT_TICK.register((c) -> {
             while (OPEN_MAP.wasPressed())
             {
