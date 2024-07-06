@@ -1,5 +1,6 @@
 package garden.hestia.hoofprint;
 
+import folk.sisby.surveyor.WorldSummary;
 import folk.sisby.surveyor.client.SurveyorClientEvents;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -18,6 +19,8 @@ public class Hoofprint implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        WorldSummary.enableTerrain();
+        WorldSummary.enableLandmarks();
         ClientTickEvents.END_CLIENT_TICK.register((c) -> {
             while (OPEN_MAP.wasPressed())
             {
