@@ -29,6 +29,7 @@ public class HoofprintScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        super.render(context, mouseX, mouseY, delta);
         int roundCentreX = (int) Math.round(centreX);
         int roundCentreZ = (int) Math.round(centreZ);
         ChunkPos originChunk = new ChunkPos(roundCentreX / 16, roundCentreZ / 16);
@@ -68,7 +69,6 @@ public class HoofprintScreen extends Screen {
             int playerScreenZ = height / 2 + playerZ - roundCentreZ;
             context.fill(playerScreenX, playerScreenZ, playerScreenX + 1, playerScreenZ + 1, 0xff39ff14);
         }
-        super.render(context, mouseX, mouseY, delta);
     }
 
     int[][] getColors(LayerSummary.Raw layer, @Nullable LayerSummary.Raw aboveLayer, RegistryPalette<Biome>.ValueView biomePalette, RegistryPalette<Block>.ValueView blockPalette) {
