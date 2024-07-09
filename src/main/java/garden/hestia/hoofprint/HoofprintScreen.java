@@ -48,7 +48,7 @@ public class HoofprintScreen extends Screen {
                         RegistryPalette<Biome>.ValueView biomePalette = mapStorage.biomePalettes.get(pos);
                         RegistryPalette<Block>.ValueView blockPalette = mapStorage.blockPalettes.get(pos);
 
-                        if (layer != null) {
+                        if (layer != null && biomePalette != null && blockPalette != null) {
                             int[][] colors = this.getColors(layer, aboveLayer, biomePalette, blockPalette);
                             for (int x = 0; x < colors.length; x++) {
                                 for (int z = 0; z < colors[x].length; z++) {
@@ -77,7 +77,8 @@ public class HoofprintScreen extends Screen {
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
                 int i = x * 16 + z;
-                int color = 0;
+                if (!layer.exists().get(i)) continue;
+                int color;
                 int waterColor;
                 if (!Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0)
                 {
