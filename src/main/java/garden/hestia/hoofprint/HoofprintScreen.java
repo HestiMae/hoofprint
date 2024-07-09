@@ -77,6 +77,7 @@ public class HoofprintScreen extends Screen {
             for (int z = 0; z < 16; z++) {
                 int i = x * 16 + z;
                 int color = 0;
+                int waterColor;
                 if (!Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0)
                 {
                     color = ColorUtil.getWaterColor(biomePalette.get(layer.biomes()[i]));
@@ -98,6 +99,11 @@ public class HoofprintScreen extends Screen {
                         if (aboveLayer.depths()[x * 16 + 15] > layer.depths()[i]) brightness = ColorUtil.Brightness.HIGH;
                     }
                     color = ColorUtil.applyBrightnessRGB(brightness, color);
+                }
+                if (Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0)
+                {
+                    waterColor = ColorUtil.getWaterColor(biomePalette.get(layer.biomes()[i]));
+                    color = ColorUtil.blend(color, waterColor, 0.6F);
                 }
                 colors[x][z] = color | 0xff000000;
             }
