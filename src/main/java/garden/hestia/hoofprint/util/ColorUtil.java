@@ -3,7 +3,9 @@ package garden.hestia.hoofprint.util;
 import garden.hestia.hoofprint.Hoofprint;
 import net.minecraft.block.Block;
 import net.minecraft.world.biome.Biome;
+import net.minecraft.world.biome.FoliageColors;
 
+import java.awt.*;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
@@ -21,7 +23,13 @@ public class ColorUtil {
             BlockConstants.GRASS_BLOCK_BLOCKS::contains,
         (block, biome) -> ColorUtil.tint(ColorConstants.GRASS_BLOCK_TEXTURE_COLOR, biome.getFoliageColor()),
             BlockConstants.STONE_BLOCKS::contains,
-        (block, biome) -> ColorUtil.tint(ColorConstants.STONE_MAP_COLOR, biome.getFoliageColor())
+        (block, biome) -> ColorUtil.tint(ColorConstants.STONE_MAP_COLOR, biome.getFoliageColor()),
+        BlockConstants.SPRUCE_BLOCKS::contains,
+        (block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.getSpruceColor()),
+        BlockConstants.BIRCH_BLOCKS::contains,
+        (block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.getBirchColor()),
+        BlockConstants.MANGROVE_BLOCKS::contains,
+        (block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.getMangroveColor())
     );
 
     public static int tint(int base, int tint) {
