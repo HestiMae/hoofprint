@@ -1,12 +1,28 @@
 package garden.hestia.hoofprint.util;
 
 import garden.hestia.hoofprint.Hoofprint;
+import net.minecraft.block.Block;
 import net.minecraft.world.biome.Biome;
+
+import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Predicate;
 
 import static garden.hestia.hoofprint.util.ColorConstants.WATER_MAP_COLOR;
 import static garden.hestia.hoofprint.util.ColorConstants.WATER_TEXTURE_COLOR;
 
 public class ColorUtil {
+    public static final Map<Predicate<Block>, BiFunction<Block, Biome, Integer>> BLOCK_COLOR_PROVIDERS = Map.of(
+            BlockConstants.FOLIAGE_BLOCKS::contains,
+        (block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, biome.getFoliageColor()),
+            BlockConstants.GRASS_BLOCKS::contains,
+        (block, biome) -> ColorUtil.tint(ColorConstants.GRASS_TEXTURE_COLOR, biome.getFoliageColor()),
+            BlockConstants.GRASS_BLOCK_BLOCKS::contains,
+        (block, biome) -> ColorUtil.tint(ColorConstants.GRASS_BLOCK_TEXTURE_COLOR, biome.getFoliageColor()),
+            BlockConstants.STONE_BLOCKS::contains,
+        (block, biome) -> ColorUtil.tint(ColorConstants.STONE_MAP_COLOR, biome.getFoliageColor())
+    );
+
     public static int tint(int base, int tint) {
         int a1 = (base >>> 24);
         int r1 = ((base & 0xff0000) >> 16);
@@ -70,6 +86,18 @@ public class ColorUtil {
         } else {
             return Brightness.HIGH;
         }
+    }
+
+    public static int getBlockColour(Block block, Biome biome)
+    {
+        for (Predicate<Block> predicate : BLOCK_COLOR_PROVIDERS.keySet())
+        {
+            if (predicate.test(block))
+            {
+                return BLOCK_COLOR_PROVIDERS.get(predicate).apply(block, biome);
+            }
+        }
+        return block.getDefaultMapColor().color;
     }
 
     public static int getWaterColor(Biome biome) {
