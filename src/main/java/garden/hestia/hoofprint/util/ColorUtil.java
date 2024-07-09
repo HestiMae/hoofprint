@@ -3,9 +3,7 @@ package garden.hestia.hoofprint.util;
 import garden.hestia.hoofprint.Hoofprint;
 import net.minecraft.block.Block;
 import net.minecraft.world.biome.Biome;
-import net.minecraft.world.biome.FoliageColors;
-
-import java.awt.*;
+import net.minecraft.client.color.world.FoliageColors;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
