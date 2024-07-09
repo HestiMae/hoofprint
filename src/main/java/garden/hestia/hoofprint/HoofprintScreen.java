@@ -82,7 +82,7 @@ public class HoofprintScreen extends Screen {
                     color = ColorUtil.getWaterColor(biomePalette.get(layer.biomes()[i]));
                 }
                 else {
-                    color = blockPalette.get(layer.blocks()[i]).getDefaultMapColor().color;
+                    color = ColorUtil.getBlockColour(blockPalette.get(layer.blocks()[i]), biomePalette.get(layer.biomes()[i]));
                 }
                 if (Hoofprint.CONFIG.topography) {
                     ColorUtil.Brightness brightness = ColorUtil.Brightness.NORMAL;
