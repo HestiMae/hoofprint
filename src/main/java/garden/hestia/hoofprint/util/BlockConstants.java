@@ -7,9 +7,12 @@ import java.util.List;
 
 public class BlockConstants {
     public static final List<Block> FOLIAGE_BLOCKS = List.of(Blocks.OAK_LEAVES, Blocks.JUNGLE_LEAVES,
-        Blocks.ACACIA_LEAVES, Blocks.DARK_OAK_LEAVES, Blocks.MANGROVE_LEAVES, Blocks.VINE);
+        Blocks.ACACIA_LEAVES, Blocks.DARK_OAK_LEAVES, Blocks.VINE);
     public static final List<Block> GRASS_BLOCKS = List.of(Blocks.SHORT_GRASS, Blocks.TALL_GRASS,
         Blocks.FERN, Blocks.POTTED_FERN, Blocks.LARGE_FERN, Blocks.SUGAR_CANE);
     public static final List<Block> GRASS_BLOCK_BLOCKS = List.of(Blocks.GRASS_BLOCK);
     public static final List<Block> STONE_BLOCKS = List.of(Blocks.STONE, Blocks.ANDESITE);
+    public static final List<Block> SPRUCE_BLOCKS = List.of(Blocks.SPRUCE_LEAVES);
+    public static final List<Block> BIRCH_BLOCKS = List.of(Blocks.BIRCH_LEAVES);
+    public static final List<Block> MANGROVE_BLOCKS = List.of(Blocks.MANGROVE_LEAVES);
 }
