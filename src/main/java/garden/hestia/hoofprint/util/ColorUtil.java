@@ -12,6 +12,7 @@ import static garden.hestia.hoofprint.util.ColorConstants.WATER_MAP_COLOR;
 import static garden.hestia.hoofprint.util.ColorConstants.WATER_TEXTURE_COLOR;
 
 public class ColorUtil {
+    public static final int SKY_LIGHT = 15;
     public static final Map<Predicate<Block>, BiFunction<Block, Biome, Integer>> BLOCK_COLOR_PROVIDERS = Map.of(
             BlockConstants.FOLIAGE_BLOCKS::contains,
         (block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, biome.getFoliageColor()),
