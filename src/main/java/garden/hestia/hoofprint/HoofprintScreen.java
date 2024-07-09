@@ -4,6 +4,7 @@ import folk.sisby.surveyor.terrain.LayerSummary;
 import folk.sisby.surveyor.util.RegistryPalette;
 import garden.hestia.hoofprint.util.ColorUtil;
 import garden.hestia.hoofprint.util.FillBatcher;
+import garden.hestia.hoofprint.util.LightMapUtil;
 import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -100,9 +101,19 @@ public class HoofprintScreen extends Screen {
                     }
                     color = ColorUtil.applyBrightnessRGB(brightness, color);
                 }
+                if (Hoofprint.CONFIG.lighting) {
+                    int blockLight = layer.lightLevels()[i];
+                    int skyLight = Math.max(ColorUtil.SKY_LIGHT - layer.waterDepths()[i], 0);
+                    color = ColorUtil.tint(color, LightMapUtil.DAY[skyLight][blockLight]);
+                }
                 if (Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0)
                 {
                     waterColor = ColorUtil.getWaterColor(biomePalette.get(layer.biomes()[i]));
+                    if (Hoofprint.CONFIG.lighting) {
+                        int blockLight = layer.waterLights()[i];
+                        int skyLight = ColorUtil.SKY_LIGHT;
+                        waterColor = ColorUtil.tint(waterColor, LightMapUtil.DAY[skyLight][blockLight]);
+                    }
                     color = ColorUtil.blend(color, waterColor, 0.6F);
                 }
                 colors[x][z] = color | 0xff000000;
