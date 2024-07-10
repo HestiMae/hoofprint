@@ -7,4 +7,5 @@ public class ColorConstants {
     public static final int GRASS_TEXTURE_COLOR = 0x949494;
     public static final int GRASS_BLOCK_TEXTURE_COLOR = 0x959595;
     public static final int STONE_MAP_COLOR = 0x808080;
+    public static final int ICE_MAP_COLOR = 0x8eb3f8;
 }

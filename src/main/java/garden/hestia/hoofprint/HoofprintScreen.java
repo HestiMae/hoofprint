@@ -102,7 +102,7 @@ public class HoofprintScreen extends Screen {
                     }
                     color = ColorUtil.applyBrightnessRGB(brightness, color);
                 }
-                if (Hoofprint.CONFIG.lighting) {
+                if (Hoofprint.CONFIG.lighting && (Hoofprint.CONFIG.transparentWater || layer.waterDepths()[i] == 0)) {
                     int blockLight = layer.lightLevels()[i];
                     int skyLight = Math.max(ColorUtil.SKY_LIGHT - layer.waterDepths()[i], 0);
                     color = ColorUtil.tint(color, LightMapUtil.DAY[skyLight][blockLight]);
