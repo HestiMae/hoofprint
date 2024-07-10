@@ -41,6 +41,9 @@ public class Hoofprint implements ClientModInitializer {
         SurveyorClientEvents.Register.landmarksAdded(Identifier.of(ID, "landmarks_added"), (world, worldLandmarks, landmarks) -> {
             HoofprintMapStorage.get(world.getRegistryKey()).landmarksAdded(world, worldLandmarks, landmarks);
         });
+        SurveyorClientEvents.Register.landmarksRemoved(new Identifier(ID, "landmarks_removed"), (world, worldLandmarks, landmarks) -> {
+            HoofprintMapStorage.get(world.getRegistryKey()).landmarksRemoved(world, worldLandmarks, landmarks);
+        });
 
         LOGGER.info("[Hoofprint] They went thatta-way!");
     }

@@ -2,6 +2,7 @@ package garden.hestia.hoofprint;
 
 import com.google.common.collect.Multimap;
 import folk.sisby.surveyor.WorldSummary;
+import folk.sisby.surveyor.landmark.Landmark;
 import folk.sisby.surveyor.landmark.LandmarkType;
 import folk.sisby.surveyor.landmark.WorldLandmarks;
 import folk.sisby.surveyor.terrain.LayerSummary;
@@ -26,6 +27,7 @@ public class HoofprintMapStorage {
     private static final Map<RegistryKey<World>, HoofprintMapStorage> INSTANCES = new HashMap<>();
 
     Map<ChunkPos, LayerSummary.Raw> bakedTerrain = new HashMap<>();
+    Map<LandmarkType<?>, Map<BlockPos, Landmark<?>>> landmarks = new HashMap<>();
     Map<ChunkPos, RegistryPalette<Biome>.ValueView> biomePalettes = new HashMap<>();
     Map<ChunkPos, RegistryPalette<Block>.ValueView> blockPalettes = new HashMap<>();
 
@@ -35,6 +37,7 @@ public class HoofprintMapStorage {
             biomePalettes.put(chunkPos, summary.terrain().getBiomePalette(chunkPos));
             blockPalettes.put(chunkPos, summary.terrain().getBlockPalette(chunkPos));
         }
+        landmarksAdded(world, summary.landmarks(), landmarks);
     }
 
     public void terrainUpdated(World world, WorldTerrainSummary worldTerrainSummary, Collection<ChunkPos> chunks) {
@@ -47,11 +50,19 @@ public class HoofprintMapStorage {
 
 
     public void landmarksAdded(World world, WorldLandmarks worldLandmarks, Multimap<LandmarkType<?>, BlockPos> landmarks) {
-        // handle later
+        landmarks.forEach((type, pos) -> {
+            this.landmarks.computeIfAbsent(type, t -> new HashMap<>()).put(pos, worldLandmarks.get(type, pos));
+        });
+    }
+
+    public void landmarksRemoved(World world, WorldLandmarks worldLandmarks, Multimap<LandmarkType<?>, BlockPos> landmarks) {
+        landmarks.forEach((type, pos) -> {
+            this.landmarks.computeIfAbsent(type, t -> new HashMap<>()).remove(pos);
+            if (this.landmarks.get(type).isEmpty()) this.landmarks.remove(type);
+        });
     }
 
     public static HoofprintMapStorage get(RegistryKey<World> dim) {
         return HoofprintMapStorage.INSTANCES.computeIfAbsent(dim, (key) -> new HoofprintMapStorage());
     }
-
 }
