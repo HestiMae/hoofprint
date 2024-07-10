@@ -78,7 +78,9 @@ public class HoofprintScreen extends Screen {
                 context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + player.yaw()));
                 context.getMatrices().translate(-5/2.0f, -7/2.0f, 0);
                 boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
-                context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, friend ? 10 : 2, 0, 5, 7, 128, 128);
+                if (friend) RenderSystem.setShaderColor(0.0f, 1.0f, 0.3f, 1.0F);
+                context.drawTexture(Identifier.tryParse("textures/map/decorations/player.png"), 0, 0, 5, 7, 2, 0, 5, 7, 8, 8);
+                RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
                 context.getMatrices().pop();
             });
             this.mapStorage.landmarks.forEach((type, map) -> map.forEach((pos, landmark) -> {
@@ -87,14 +89,14 @@ public class HoofprintScreen extends Screen {
                 int landmarkZ = (int) Math.floor(origin.z);
                 int landmarkScreenX = width / 2 + landmarkX - roundCentreX;
                 int landmarkScreenY = height / 2 + landmarkZ - roundCentreZ;
-                float[] landmarkColors = landmark.color() == null ? null : landmark.color().getColorComponents();
+                float[] landmarkColors = landmark.color() == null ? null : ColorUtil.getColorFromArgb(landmark.color().getMapColor().color);
                 boolean mouseOver = mouseX > landmarkScreenX - 5 && mouseX < landmarkScreenX + 5 && mouseY > landmarkScreenY - 5 && mouseY < landmarkScreenY + 5;
                 float tint = mouseOver ? 0.7F : 1.0F;
                 context.getMatrices().push();
                 context.getMatrices().translate(landmarkScreenX, landmarkScreenY, 0);
                 context.getMatrices().translate(-5/2.0f, -7/2.0f, 0);
                 if (landmarkColors != null) RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
-                context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 6, 8, 81, 0, 6, 8, 128, 128);
+                context.drawTexture(Identifier.tryParse("textures/map/decorations/white_banner.png"), 0, 0, 6, 8, 0, 0, 6, 8, 8, 8);
                 RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
                 context.getMatrices().pop();
                 if (landmark.name() != null && mouseOver)

@@ -2,6 +2,7 @@ package garden.hestia.hoofprint.util;
 
 import garden.hestia.hoofprint.Hoofprint;
 import net.minecraft.block.Block;
+import net.minecraft.util.math.ColorHelper;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.FoliageColors;
 import java.util.Map;
@@ -111,6 +112,10 @@ public class ColorUtil {
 
     public static int getWaterColor(Biome biome) {
         return Hoofprint.CONFIG.biomeWater ? tint(WATER_TEXTURE_COLOR, biome.getWaterColor()) : applyBrightnessRGB(Brightness.LOWEST, WATER_MAP_COLOR);
+    }
+
+    public static float[] getColorFromArgb(int color) {
+        return new float[] { ColorHelper.Argb.getRed(color) / 255f, ColorHelper.Argb.getGreen(color) / 255f, ColorHelper.Argb.getBlue(color) / 255f };
     }
 
     public enum Brightness {
