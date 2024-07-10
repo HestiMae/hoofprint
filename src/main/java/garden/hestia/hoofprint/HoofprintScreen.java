@@ -1,5 +1,7 @@
 package garden.hestia.hoofprint;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import folk.sisby.surveyor.client.SurveyorClient;
 import folk.sisby.surveyor.terrain.LayerSummary;
 import folk.sisby.surveyor.util.RegistryPalette;
 import garden.hestia.hoofprint.util.ColorUtil;
@@ -11,7 +13,9 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
@@ -62,12 +66,42 @@ public class HoofprintScreen extends Screen {
                     }
                 }
             }
-            Vec3d origin = MinecraftClient.getInstance().player.getPos();
-            int playerX = (int) Math.floor(origin.x);
-            int playerZ = (int) Math.floor(origin.z);
-            int playerScreenX = width / 2 + playerX - roundCentreX;
-            int playerScreenZ = height / 2 + playerZ - roundCentreZ;
-            context.fill(playerScreenX, playerScreenZ, playerScreenX + 1, playerScreenZ + 1, 0xff39ff14);
+            SurveyorClient.getFriends().forEach((uuid, player) -> {
+                Vec3d origin = player.pos();
+                int playerX = (int) Math.floor(origin.x);
+                int playerZ = (int) Math.floor(origin.z);
+                int playerScreenX = width / 2 + playerX - roundCentreX;
+                int playerScreenY = height / 2 + playerZ - roundCentreZ;
+                context.getMatrices().push();
+                context.getMatrices().translate(playerScreenX, playerScreenY, 0);
+                context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + player.yaw()));
+                context.getMatrices().translate(-5/2.0f, -7/2.0f, 0);
+                boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
+                context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, friend ? 10 : 2, 0, 5, 7, 128, 128);
+                context.getMatrices().pop();
+            });
+            this.mapStorage.landmarks.forEach((type, map) -> map.forEach((pos, landmark) -> {
+                Vec3d origin = pos.toCenterPos();
+                int landmarkX = (int) Math.floor(origin.x);
+                int landmarkZ = (int) Math.floor(origin.z);
+                int landmarkScreenX = width / 2 + landmarkX - roundCentreX;
+                int landmarkScreenY = height / 2 + landmarkZ - roundCentreZ;
+                float[] landmarkColors = landmark.color() == null ? null : landmark.color().getColorComponents();
+                boolean mouseOver = mouseX > landmarkScreenX - 5 && mouseX < landmarkScreenX + 5 && mouseY > landmarkScreenY - 5 && mouseY < landmarkScreenY + 5;
+                float tint = mouseOver ? 0.7F : 1.0F;
+                context.getMatrices().push();
+                context.getMatrices().translate(landmarkScreenX, landmarkScreenY, 0);
+                context.getMatrices().translate(-5/2.0f, -7/2.0f, 0);
+                if (landmarkColors != null) RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
+                context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 6, 8, 81, 0, 6, 8, 128, 128);
+                RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+                context.getMatrices().pop();
+                if (landmark.name() != null && mouseOver)
+                {
+                    context.drawTooltip(this.textRenderer, landmark.name(), mouseX, mouseY);
+                }
+            }));
+
         }
         super.render(context, mouseX, mouseY, delta);
     }
