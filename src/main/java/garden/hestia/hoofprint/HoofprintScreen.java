@@ -89,7 +89,7 @@ public class HoofprintScreen extends Screen {
                 int playerX = (int) Math.floor(origin.x);
                 int playerZ = (int) Math.floor(origin.z);
                 int playerScreenX = width / 2 + playerX - roundCentreX;
-                int playerScreenY = height / 2 + playerZ - roundCentreZ;
+                int playerScreenY = height / 2 + playerZ - roundCentreZ + 4;
                 boolean mouseOver = mouseX > playerScreenX - 5 && mouseX < playerScreenX + 5 && mouseY > playerScreenY - 5 && mouseY < playerScreenY + 5;
                 if (player.username() != null && mouseOver && hoveredLandmarks.isEmpty())
                 {
@@ -126,13 +126,9 @@ public class HoofprintScreen extends Screen {
                 float[] landmarkColors = landmark.color() == null ? null : ColorUtil.getColorFromArgb(landmark.color().getMapColor().color);
                 boolean mouseOver = mouseX > landmarkScreenX - 5 && mouseX < landmarkScreenX + 5 && mouseY > landmarkScreenY - 5 && mouseY < landmarkScreenY + 5;
                 float tint = mouseOver ? 0.7F : 1.0F;
-                context.getMatrices().push();
-                context.getMatrices().translate(landmarkScreenX, landmarkScreenY, 0);
-                context.getMatrices().translate(-5/2.0f, -7/2.0f, 0);
                 if (landmarkColors != null) RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
-                context.drawTexture(Identifier.tryParse("textures/map/decorations/white_banner.png"), 0, 0, 6, 8, 0, 0, 6, 8, 8, 8);
+                context.drawTexture(Identifier.tryParse("textures/map/decorations/white_banner.png"), landmarkScreenX - 4, landmarkScreenY, 8, 8, 0, 0, 8, 8, 8, 8);
                 RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-                context.getMatrices().pop();
             }));
 
             if (!hoveredLandmarks.isEmpty()) context.drawTooltip(this.textRenderer, hoveredLandmarks.get(0).name(), mouseX, mouseY);
