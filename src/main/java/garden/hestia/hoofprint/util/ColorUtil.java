@@ -113,6 +113,12 @@ public class ColorUtil {
         return Hoofprint.CONFIG.biomeWater ? tint(WATER_TEXTURE_COLOR, biome.getWaterColor()) : applyBrightnessRGB(Brightness.LOWEST, WATER_MAP_COLOR);
     }
 
+    public static int argbToABGR(int argbColor) {
+        int r = (argbColor >> 16) & 0xFF;
+        int b = argbColor & 0xFF;
+        return (argbColor & 0xFF00FF00) | (b << 16) | r;
+    }
+
     public enum Brightness {
         LOW(180),
         NORMAL(220),
@@ -120,7 +126,6 @@ public class ColorUtil {
         LOWEST(135);
 
         public final int brightness;
-
         Brightness(int brightness) {
             this.brightness = brightness;
 
