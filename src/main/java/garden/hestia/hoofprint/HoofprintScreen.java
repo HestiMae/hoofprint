@@ -67,18 +67,26 @@ public class HoofprintScreen extends Screen {
                 }
             }
             SurveyorClient.getFriends().forEach((uuid, player) -> {
-                Vec3d origin = player.pos();
-                int playerX = (int) Math.floor(origin.x);
-                int playerZ = (int) Math.floor(origin.z);
-                int playerScreenX = width / 2 + playerX - roundCentreX;
-                int playerScreenY = height / 2 + playerZ - roundCentreZ;
-                context.getMatrices().push();
-                context.getMatrices().translate(playerScreenX, playerScreenY, 0);
-                context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + player.yaw()));
-                context.getMatrices().translate(-5/2.0f, -7/2.0f, 0);
-                boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
-                context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, friend ? 10 : 2, 0, 5, 7, 128, 128);
-                context.getMatrices().pop();
+                if (player.online() || Hoofprint.CONFIG.showOffline)
+                {
+                    Vec3d origin = player.pos();
+                    int playerX = (int) Math.floor(origin.x);
+                    int playerZ = (int) Math.floor(origin.z);
+                    int playerScreenX = width / 2 + playerX - roundCentreX;
+                    int playerScreenY = height / 2 + playerZ - roundCentreZ;
+                    context.getMatrices().push();
+                    context.getMatrices().translate(playerScreenX, playerScreenY, 0);
+                    context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + player.yaw()));
+                    context.getMatrices().translate(-5/2.0f, -7/2.0f, 0);
+                    boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
+                    context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, friend ? 10 : 2, 0, 5, 7, 128, 128);
+                    context.getMatrices().pop();
+                    boolean mouseOver = mouseX > playerScreenX - 5 && mouseX < playerScreenX + 5 && mouseY > playerScreenY - 5 && mouseY < playerScreenY + 5;
+                    if (player.username() != null && mouseOver)
+                    {
+                        context.drawTooltip(this.textRenderer, Text.of(player.username()), mouseX, mouseY);
+                    }
+                }
             });
             this.mapStorage.landmarks.forEach((type, map) -> map.forEach((pos, landmark) -> {
                 Vec3d origin = pos.toCenterPos();
