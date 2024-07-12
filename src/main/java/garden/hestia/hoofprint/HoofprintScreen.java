@@ -79,7 +79,7 @@ public class HoofprintScreen extends Screen {
                     context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + player.yaw()));
                     context.getMatrices().translate(-5/2.0f, -7/2.0f, 0);
                     boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
-                    context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, friend ? 10 : 2, 0, 5, 7, 128, 128);
+                    context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, !player.online() ? 19 : friend ? 10 : 2, 0, 5, 7, 128, 128);
                     context.getMatrices().pop();
                     boolean mouseOver = mouseX > playerScreenX - 5 && mouseX < playerScreenX + 5 && mouseY > playerScreenY - 5 && mouseY < playerScreenY + 5;
                     if (player.username() != null && mouseOver)
