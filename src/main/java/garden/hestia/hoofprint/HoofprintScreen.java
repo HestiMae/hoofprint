@@ -112,11 +112,11 @@ public class HoofprintScreen extends Screen {
             this.mapStorage.landmarks.forEach((type, map) -> map.forEach((pos, landmark) -> {
                 int landmarkScreenX = width / 2 + pos.getX() - roundCentreX;
                 int landmarkScreenY = height / 2 + pos.getZ() - roundCentreZ;
-                float[] landmarkColors = landmark.color() == null ? null : ColorUtil.getColorFromArgb(landmark.color().getMapColor().color);
+                float[] landmarkColors = landmark.color() == null ? null : ColorUtil.getColorFromArgb(landmark.color().getFireworkColor());
                 boolean mouseOver = hoveredLandmarks.contains(landmark);
                 float tint = mouseOver ? 0.7F : 1.0F;
                 if (landmarkColors != null) RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
-                context.drawTexture(Identifier.tryParse("textures/map/decorations/white_banner.png"), landmarkScreenX - 4, landmarkScreenY, 8, 8, 0, 0, 8, 8, 8, 8);
+                context.drawTexture(Identifier.tryParse("textures/map/decorations/white_banner.png"), landmarkScreenX - 4, landmarkScreenY - 8, 8, 8, 0, 0, 8, 8, 8, 8);
                 RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             }));
 
