@@ -102,7 +102,6 @@ public class HoofprintScreen extends Screen {
 
         if (!hoveredLandmarks.isEmpty()) context.drawTooltip(this.textRenderer, hoveredLandmarks.get(0).name(), mouseX, mouseY);
         else if (hoveredLandmarks.isEmpty() && !hoveredPlayers.isEmpty()) context.drawTooltip(this.textRenderer, Text.of(hoveredPlayers.get(0).username()), mouseX, mouseY);
-        super.render(context, mouseX, mouseY, delta);
     }
 
     int[][] getColors(LayerSummary.Raw layer, @Nullable LayerSummary.Raw aboveLayer, RegistryPalette<Biome>.ValueView biomePalette, RegistryPalette<Block>.ValueView blockPalette) {
