@@ -1,7 +1,9 @@
 package garden.hestia.hoofprint;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import folk.sisby.surveyor.PlayerSummary;
 import folk.sisby.surveyor.client.SurveyorClient;
+import folk.sisby.surveyor.landmark.Landmark;
 import folk.sisby.surveyor.terrain.LayerSummary;
 import folk.sisby.surveyor.util.RegistryPalette;
 import garden.hestia.hoofprint.util.ColorUtil;
@@ -21,6 +23,9 @@ import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class HoofprintScreen extends Screen {
 
@@ -66,6 +71,31 @@ public class HoofprintScreen extends Screen {
                     }
                 }
             }
+            List<Landmark<?>> hoveredLandmarks = new ArrayList<>();
+            this.mapStorage.landmarks.forEach((type, map) -> map.forEach((pos, landmark) -> {
+                Vec3d origin = pos.toCenterPos();
+                int landmarkX = (int) Math.floor(origin.x);
+                int landmarkZ = (int) Math.floor(origin.z);
+                int landmarkScreenX = width / 2 + landmarkX - roundCentreX;
+                int landmarkScreenY = height / 2 + landmarkZ - roundCentreZ;
+                boolean mouseOver = mouseX > landmarkScreenX - 5 && mouseX < landmarkScreenX + 5 && mouseY > landmarkScreenY - 5 && mouseY < landmarkScreenY + 5;
+                if (mouseOver) hoveredLandmarks.add(landmark);
+            }));
+
+            List<PlayerSummary> hoveredPlayers = new ArrayList<>();
+            SurveyorClient.getFriends().forEach((uuid, player) -> {
+                Vec3d origin = player.pos();
+                int playerX = (int) Math.floor(origin.x);
+                int playerZ = (int) Math.floor(origin.z);
+                int playerScreenX = width / 2 + playerX - roundCentreX;
+                int playerScreenY = height / 2 + playerZ - roundCentreZ;
+                boolean mouseOver = mouseX > playerScreenX - 5 && mouseX < playerScreenX + 5 && mouseY > playerScreenY - 5 && mouseY < playerScreenY + 5;
+                if (player.username() != null && mouseOver && hoveredLandmarks.isEmpty())
+                {
+                    hoveredPlayers.add(player);
+                }
+            });
+
             SurveyorClient.getFriends().forEach((uuid, player) -> {
                 if (player.online() || Hoofprint.CONFIG.showOffline)
                 {
@@ -81,13 +111,9 @@ public class HoofprintScreen extends Screen {
                     boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
                     context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, !player.online() ? 19 : friend ? 10 : 2, 0, 5, 7, 128, 128);
                     context.getMatrices().pop();
-                    boolean mouseOver = mouseX > playerScreenX - 5 && mouseX < playerScreenX + 5 && mouseY > playerScreenY - 5 && mouseY < playerScreenY + 5;
-                    if (player.username() != null && mouseOver)
-                    {
-                        context.drawTooltip(this.textRenderer, Text.of(player.username()), mouseX, mouseY);
-                    }
                 }
             });
+
             this.mapStorage.landmarks.forEach((type, map) -> map.forEach((pos, landmark) -> {
                 Vec3d origin = pos.toCenterPos();
                 int landmarkX = (int) Math.floor(origin.x);
@@ -104,12 +130,10 @@ public class HoofprintScreen extends Screen {
                 context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 6, 8, 81, 0, 6, 8, 128, 128);
                 RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
                 context.getMatrices().pop();
-                if (landmark.name() != null && mouseOver)
-                {
-                    context.drawTooltip(this.textRenderer, landmark.name(), mouseX, mouseY);
-                }
             }));
 
+            if (!hoveredLandmarks.isEmpty()) context.drawTooltip(this.textRenderer, hoveredLandmarks.get(0).name(), mouseX, mouseY);
+            else if (hoveredLandmarks.isEmpty() && !hoveredPlayers.isEmpty()) context.drawTooltip(this.textRenderer, Text.of(hoveredPlayers.get(0).username()), mouseX, mouseY);
         }
         super.render(context, mouseX, mouseY, delta);
     }
