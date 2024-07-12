@@ -13,12 +13,12 @@ Hoofprint adds a world map, accessible from a hotkey (default `M`)
 
 **Features:**
 
-- Rendered using batched pixel fills (slow but not unplayable)
-- Updates terrain with surveyor (on chunk load / unload)
+- Rendered using baked dynamic textures per-region
+- Updates terrain with surveyor after reopening
 - Panning with mouse drag, or arrow keys for fine adjustment
 - Vanilla-level map detail - block map colors, elevation shading, & dithered water
 - Vanilla+ map detail options - transparent water, block lighting, biome colors (unblended)
-- Vanilla marker display for player and map-sharing friends with rotation
+- Vanilla marker display for player and map-sharing friends with names and rotation
 - Vanilla marker display for landmarks with name tooltips and dye color support
 
 ---
