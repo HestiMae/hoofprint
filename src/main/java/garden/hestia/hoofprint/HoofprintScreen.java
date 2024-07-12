@@ -18,7 +18,6 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import org.jetbrains.annotations.Nullable;
@@ -48,9 +47,9 @@ public class HoofprintScreen extends Screen {
             try (FillBatcher batcher = new FillBatcher(context)) {
                 int xSize = (int) Math.ceil((float) this.width / 16) + 4;
                 int zSize = (int) Math.ceil((float) this.height / 16) + 4;
-                for (int chunkX = -2; chunkX < xSize; chunkX++) {
-                    for (int chunkZ = -2; chunkZ < zSize; chunkZ++) {
-                        ChunkPos pos = new ChunkPos(chunkX + originChunk.x - Math.round(xSize / 2.0f) + 2, chunkZ + originChunk.z - Math.round(zSize / 2.0f) + 2);
+                for (int chunkX = -xSize / 2; chunkX < xSize / 2; chunkX++) {
+                    for (int chunkZ = -zSize; chunkZ < zSize / 2; chunkZ++) {
+                        ChunkPos pos = new ChunkPos(originChunk.x + chunkX, originChunk.z + chunkZ);
                         LayerSummary.Raw layer = mapStorage.bakedTerrain.get(pos);
                         LayerSummary.Raw aboveLayer = mapStorage.bakedTerrain.get(new ChunkPos(pos.x, pos.z - 1));
                         RegistryPalette<Biome>.ValueView biomePalette = mapStorage.biomePalettes.get(pos);
@@ -60,8 +59,8 @@ public class HoofprintScreen extends Screen {
                             int[][] colors = this.getColors(layer, aboveLayer, biomePalette, blockPalette);
                             for (int x = 0; x < colors.length; x++) {
                                 for (int z = 0; z < colors[x].length; z++) {
-                                    int x1 = chunkX * 16 + x - chunkRelativeX;
-                                    int y1 = chunkZ * 16 + z - chunkRelativeZ;
+                                    int x1 = this.width / 2 + 16 * chunkX  + x - chunkRelativeX;
+                                    int y1 = this.height / 2 + 16 * chunkZ +  z - chunkRelativeZ;
 
                                     if (x1 <= width && y1 <= height)
                                         batcher.add(x1, y1, x1 + 1, y1 + 1, 0, colors[x][z]);
@@ -73,23 +72,17 @@ public class HoofprintScreen extends Screen {
             }
             List<Landmark<?>> hoveredLandmarks = new ArrayList<>();
             this.mapStorage.landmarks.forEach((type, map) -> map.forEach((pos, landmark) -> {
-                Vec3d origin = pos.toCenterPos();
-                int landmarkX = (int) Math.floor(origin.x);
-                int landmarkZ = (int) Math.floor(origin.z);
-                int landmarkScreenX = width / 2 + landmarkX - roundCentreX;
-                int landmarkScreenY = height / 2 + landmarkZ - roundCentreZ;
-                boolean mouseOver = mouseX > landmarkScreenX - 5 && mouseX < landmarkScreenX + 5 && mouseY > landmarkScreenY - 5 && mouseY < landmarkScreenY + 5;
+                int landmarkCenterX = width / 2 + pos.getX() - roundCentreX;
+                int landmarkCenterY = height / 2 + pos.getZ() - roundCentreZ - 4;
+                boolean mouseOver = mouseX > landmarkCenterX - 5 && mouseX < landmarkCenterX + 5 && mouseY > landmarkCenterY - 5 && mouseY < landmarkCenterY + 5;
                 if (mouseOver) hoveredLandmarks.add(landmark);
             }));
 
             List<PlayerSummary> hoveredPlayers = new ArrayList<>();
             SurveyorClient.getFriends().forEach((uuid, player) -> {
-                Vec3d origin = player.pos();
-                int playerX = (int) Math.floor(origin.x);
-                int playerZ = (int) Math.floor(origin.z);
-                int playerScreenX = width / 2 + playerX - roundCentreX;
-                int playerScreenY = height / 2 + playerZ - roundCentreZ;
-                boolean mouseOver = mouseX > playerScreenX - 5 && mouseX < playerScreenX + 5 && mouseY > playerScreenY - 5 && mouseY < playerScreenY + 5;
+                int playerCenterX = (int) Math.round(width / 2.0f + player.pos().getX() - roundCentreX);
+                int playerCenterY = (int) Math.round(height / 2.0f + player.pos().getZ() - roundCentreZ);
+                boolean mouseOver = mouseX > playerCenterX - 4 && mouseX < playerCenterX + 4 && mouseY > playerCenterY - 4 && mouseY < playerCenterY + 4;
                 if (player.username() != null && mouseOver && hoveredLandmarks.isEmpty())
                 {
                     hoveredPlayers.add(player);
@@ -99,37 +92,31 @@ public class HoofprintScreen extends Screen {
             SurveyorClient.getFriends().forEach((uuid, player) -> {
                 if (player.online() || Hoofprint.CONFIG.showOffline)
                 {
-                    Vec3d origin = player.pos();
-                    int playerX = (int) Math.floor(origin.x);
-                    int playerZ = (int) Math.floor(origin.z);
-                    int playerScreenX = width / 2 + playerX - roundCentreX;
-                    int playerScreenY = height / 2 + playerZ - roundCentreZ;
+                    int playerScreenX = (int) Math.round(width / 2.0f + player.pos().getX() - roundCentreX);
+                    int playerScreenY = (int) Math.round(height / 2.0f + player.pos().getZ() - roundCentreZ);
+                    boolean mouseOver = hoveredPlayers.contains(player);
                     context.getMatrices().push();
                     context.getMatrices().translate(playerScreenX, playerScreenY, 0);
                     context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + player.yaw()));
-                    context.getMatrices().translate(-5/2.0f, -7/2.0f, 0);
+                    context.getMatrices().translate(-2.5, -3.5, 0);
                     boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
-                    context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, !player.online() ? 19 : friend ? 10 : 2, 0, 5, 7, 128, 128);
+                    float tint = !player.online() ? 0.3f : mouseOver ? 0.8f : 1f;
+                    RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), tint, tint * (friend ? 0.3f : 1.0f), 1.0F);
+                    context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, 2, 0, 5, 7, 128, 128);
+                    RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
                     context.getMatrices().pop();
                 }
             });
 
             this.mapStorage.landmarks.forEach((type, map) -> map.forEach((pos, landmark) -> {
-                Vec3d origin = pos.toCenterPos();
-                int landmarkX = (int) Math.floor(origin.x);
-                int landmarkZ = (int) Math.floor(origin.z);
-                int landmarkScreenX = width / 2 + landmarkX - roundCentreX;
-                int landmarkScreenY = height / 2 + landmarkZ - roundCentreZ;
+                int landmarkScreenX = width / 2 + pos.getX() - roundCentreX;
+                int landmarkScreenY = height / 2 + pos.getZ() - roundCentreZ;
                 float[] landmarkColors = landmark.color() == null ? null : landmark.color().getColorComponents();
-                boolean mouseOver = mouseX > landmarkScreenX - 5 && mouseX < landmarkScreenX + 5 && mouseY > landmarkScreenY - 5 && mouseY < landmarkScreenY + 5;
+                boolean mouseOver = hoveredLandmarks.contains(landmark);
                 float tint = mouseOver ? 0.7F : 1.0F;
-                context.getMatrices().push();
-                context.getMatrices().translate(landmarkScreenX, landmarkScreenY, 0);
-                context.getMatrices().translate(-5/2.0f, -7/2.0f, 0);
                 if (landmarkColors != null) RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
-                context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 6, 8, 81, 0, 6, 8, 128, 128);
+                context.drawTexture(new Identifier("textures/map/map_icons.png"), landmarkScreenX - 4, landmarkScreenY - 8, 8, 8, 80, 0, 8, 8, 128, 128);
                 RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-                context.getMatrices().pop();
             }));
 
             if (!hoveredLandmarks.isEmpty()) context.drawTooltip(this.textRenderer, hoveredLandmarks.get(0).name(), mouseX, mouseY);
