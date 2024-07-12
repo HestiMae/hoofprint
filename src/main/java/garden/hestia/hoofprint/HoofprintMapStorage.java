@@ -5,7 +5,9 @@ import folk.sisby.surveyor.WorldSummary;
 import folk.sisby.surveyor.landmark.Landmark;
 import folk.sisby.surveyor.landmark.LandmarkType;
 import folk.sisby.surveyor.landmark.WorldLandmarks;
+import folk.sisby.surveyor.terrain.ChunkSummary;
 import folk.sisby.surveyor.terrain.LayerSummary;
+import folk.sisby.surveyor.terrain.RegionSummary;
 import folk.sisby.surveyor.terrain.WorldTerrainSummary;
 import folk.sisby.surveyor.util.RegistryPalette;
 import net.minecraft.block.Block;
@@ -26,28 +28,33 @@ import java.util.Map;
 public class HoofprintMapStorage {
     private static final Map<RegistryKey<World>, HoofprintMapStorage> INSTANCES = new HashMap<>();
 
-    Map<ChunkPos, LayerSummary.Raw> bakedTerrain = new HashMap<>();
+    int minChunkX = 0;
+    int maxChunkX = -1;
+    int minChunkZ = 0;
+    int maxChunkZ = -1;
+    Map<ChunkPos, LayerSummary.Raw[][]> bakedTerrain = new HashMap<>();
     Map<LandmarkType<?>, Map<BlockPos, Landmark<?>>> landmarks = new HashMap<>();
     Map<ChunkPos, RegistryPalette<Biome>.ValueView> biomePalettes = new HashMap<>();
     Map<ChunkPos, RegistryPalette<Block>.ValueView> blockPalettes = new HashMap<>();
 
     public void worldLoad(ClientWorld world, WorldSummary summary, ClientPlayerEntity player, Map<ChunkPos, BitSet> terrain, Multimap<RegistryKey<Structure>, ChunkPos> structures, Multimap<LandmarkType<?>, BlockPos> landmarks) {
-        for (ChunkPos chunkPos : WorldTerrainSummary.toKeys(terrain)) {
-            bakedTerrain.put(chunkPos, summary.terrain().get(chunkPos).toSingleLayer(null, null, world.getHeight()));
-            biomePalettes.put(chunkPos, summary.terrain().getBiomePalette(chunkPos));
-            blockPalettes.put(chunkPos, summary.terrain().getBlockPalette(chunkPos));
-        }
+        terrainUpdated(world, summary.terrain(), WorldTerrainSummary.toKeys(terrain));
         landmarksAdded(world, summary.landmarks(), landmarks);
     }
 
     public void terrainUpdated(World world, WorldTerrainSummary worldTerrainSummary, Collection<ChunkPos> chunks) {
-        for (ChunkPos chunk : chunks) {
-            bakedTerrain.put(chunk, worldTerrainSummary.get(chunk).toSingleLayer(null, null, world.getHeight()));
-            biomePalettes.put(chunk, worldTerrainSummary.getBiomePalette(chunk));
-            blockPalettes.put(chunk, worldTerrainSummary.getBlockPalette(chunk));
+        for (ChunkPos chunkPos : chunks) {
+            minChunkX = Math.min(chunkPos.x, minChunkX);
+            maxChunkX = Math.max(chunkPos.x, maxChunkX);
+            minChunkZ = Math.min(chunkPos.z, minChunkZ);
+            maxChunkZ = Math.max(chunkPos.z, maxChunkZ);
+            ChunkSummary chunk = worldTerrainSummary.get(chunkPos);
+            if (chunk == null) return;
+            bakedTerrain.computeIfAbsent(new ChunkPos(RegionSummary.chunkToRegion(chunkPos.x), RegionSummary.chunkToRegion(chunkPos.z)), c -> new LayerSummary.Raw[32][32])[RegionSummary.regionRelative(chunkPos.x)][RegionSummary.regionRelative(chunkPos.z)] = chunk.toSingleLayer(null, null, world.getHeight());
+            biomePalettes.put(chunkPos, worldTerrainSummary.getBiomePalette(chunkPos));
+            blockPalettes.put(chunkPos, worldTerrainSummary.getBlockPalette(chunkPos));
         }
     }
-
 
     public void landmarksAdded(World world, WorldLandmarks worldLandmarks, Multimap<LandmarkType<?>, BlockPos> landmarks) {
         landmarks.forEach((type, pos) -> {

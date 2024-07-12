@@ -114,6 +114,12 @@ public class ColorUtil {
         return Hoofprint.CONFIG.biomeWater ? tint(WATER_TEXTURE_COLOR, biome.getWaterColor()) : applyBrightnessRGB(Brightness.LOWEST, WATER_MAP_COLOR);
     }
 
+    public static int argbToABGR(int argbColor) {
+        int r = (argbColor >> 16) & 0xFF;
+        int b = argbColor & 0xFF;
+        return (argbColor & 0xFF00FF00) | (b << 16) | r;
+    }
+
     public static float[] getColorFromArgb(int color) {
         return new float[] { ColorHelper.Argb.getRed(color) / 255f, ColorHelper.Argb.getGreen(color) / 255f, ColorHelper.Argb.getBlue(color) / 255f };
     }
