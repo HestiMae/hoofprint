@@ -76,7 +76,7 @@ public class HoofprintScreen extends Screen {
 
         PlayerSummary hoveredPlayer = null;
         for (PlayerSummary player : SurveyorClient.getFriends().values()) {
-            if (player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline)) continue;
+            if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline)) continue;
             int playerCenterX = (int) Math.round(width / 2.0f + player.pos().getX() - roundCentreX);
             int playerCenterY = (int) Math.round(height / 2.0f + player.pos().getZ() - roundCentreZ);
             double mouseDistance = (mouseX - playerCenterX) * (mouseX - playerCenterX) + (mouseY - playerCenterY) * (mouseY - playerCenterY);
@@ -90,7 +90,7 @@ public class HoofprintScreen extends Screen {
         for (Map.Entry<UUID, PlayerSummary> e : SurveyorClient.getFriends().entrySet()) {
             UUID uuid = e.getKey();
             PlayerSummary player = e.getValue();
-            if (player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline)) continue;
+            if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline)) continue;
             int playerScreenX = (int) Math.round(width / 2.0f + player.pos().getX() - roundCentreX);
             int playerScreenY = (int) Math.round(height / 2.0f + player.pos().getZ() - roundCentreZ);
             boolean mouseOver = player == hoveredPlayer;
