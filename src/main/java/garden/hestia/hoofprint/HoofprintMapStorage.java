@@ -45,7 +45,9 @@ public class HoofprintMapStorage {
 
 	public static void disconnect(ClientPlayNetworkHandler handler, MinecraftClient client) {
 		INSTANCES.clear();
-	}public void worldLoad(ClientWorld world, WorldSummary summary, ClientPlayerEntity player, Map<ChunkPos, BitSet> terrain, Multimap<RegistryKey<Structure>, ChunkPos> structures, Multimap<LandmarkType<?>, BlockPos> landmarks) {
+	}
+
+	public void worldLoad(ClientWorld world, WorldSummary summary, ClientPlayerEntity player, Map<ChunkPos, BitSet> terrain, Multimap<RegistryKey<Structure>, ChunkPos> structures, Multimap<LandmarkType<?>, BlockPos> landmarks) {
 		terrainUpdated(world, summary.terrain(), WorldTerrainSummary.toKeys(terrain));
 		landmarksAdded(world, summary.landmarks(), landmarks);
 	}
