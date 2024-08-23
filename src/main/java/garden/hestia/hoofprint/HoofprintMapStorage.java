@@ -11,6 +11,8 @@ import folk.sisby.surveyor.terrain.RegionSummary;
 import folk.sisby.surveyor.terrain.WorldTerrainSummary;
 import folk.sisby.surveyor.util.RegistryPalette;
 import net.minecraft.block.Block;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.registry.RegistryKey;
@@ -72,4 +74,8 @@ public class HoofprintMapStorage {
             if (this.landmarks.get(type).isEmpty()) this.landmarks.remove(type);
         });
     }
+
+	public static void disconnect(ClientPlayNetworkHandler handler, MinecraftClient client) {
+		INSTANCES.clear();
+	}
 }

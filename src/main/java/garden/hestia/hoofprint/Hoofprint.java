@@ -5,6 +5,7 @@ import folk.sisby.surveyor.client.SurveyorClientEvents;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
@@ -29,6 +30,7 @@ public class Hoofprint implements ClientModInitializer {
 				c.setScreen(new HoofprintScreen());
 			}
 		});
+		ClientPlayConnectionEvents.DISCONNECT.register(HoofprintMapStorage::disconnect);
 
 		SurveyorClientEvents.Register.worldLoad(new Identifier(ID, "world_load"), (world, summary, player, terrain, structures, landmarks) -> {
 			HoofprintMapStorage.get(world.getRegistryKey()).worldLoad(world, summary, player, terrain, structures, landmarks);
