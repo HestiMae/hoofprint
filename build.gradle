@@ -11,7 +11,7 @@ version = "$baseVersion+$branch"
 archivesBaseName = project.slug
 
 repositories {
-	maven { url 'https://repo.sleeping.town/' }
+	maven { url "https://repo.sleeping.town/" }
 }
 
 dependencies {
