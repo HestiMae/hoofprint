@@ -14,37 +14,36 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Hoofprint implements ClientModInitializer {
-    public static final String ID = "hoofprint";
-    public static final Logger LOGGER = LoggerFactory.getLogger(ID);
-    public static final HoofprintConfig CONFIG = HoofprintConfig.createToml(FabricLoader.getInstance().getConfigDir(), "", ID, HoofprintConfig.class);
-    public static final KeyBinding OPEN_MAP = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hoofprint.open", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_M, "category.hoofprint"));
+	public static final String ID = "hoofprint";
+	public static final Logger LOGGER = LoggerFactory.getLogger(ID);
+	public static final HoofprintConfig CONFIG = HoofprintConfig.createToml(FabricLoader.getInstance().getConfigDir(), "", ID, HoofprintConfig.class);
+	public static final KeyBinding OPEN_MAP = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hoofprint.open", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_M, "category.hoofprint"));
 
-    @Override
-    public void onInitializeClient() {
-        WorldSummary.enableTerrain();
-        WorldSummary.enableLandmarks();
-        WorldSummary.enableStructures();
-        ClientTickEvents.END_CLIENT_TICK.register((c) -> {
-            while (OPEN_MAP.wasPressed())
-            {
-                c.setScreen(new HoofprintScreen());
-            }
-        });
+	@Override
+	public void onInitializeClient() {
+		WorldSummary.enableTerrain();
+		WorldSummary.enableLandmarks();
+		WorldSummary.enableStructures();
+		ClientTickEvents.END_CLIENT_TICK.register((c) -> {
+			while (OPEN_MAP.wasPressed()) {
+				c.setScreen(new HoofprintScreen());
+			}
+		});
 
-        SurveyorClientEvents.Register.worldLoad(new Identifier(ID, "world_load"), (world, summary, player, terrain, structures, landmarks) -> {
-            HoofprintMapStorage.get(world.getRegistryKey()).worldLoad(world, summary, player, terrain, structures, landmarks);
-        });
+		SurveyorClientEvents.Register.worldLoad(new Identifier(ID, "world_load"), (world, summary, player, terrain, structures, landmarks) -> {
+			HoofprintMapStorage.get(world.getRegistryKey()).worldLoad(world, summary, player, terrain, structures, landmarks);
+		});
 
-        SurveyorClientEvents.Register.terrainUpdated(new Identifier(ID, "terrain_updated"), (world, summary, chunks) -> {
-            HoofprintMapStorage.get(world.getRegistryKey()).terrainUpdated(world, summary, chunks);
-        });
-        SurveyorClientEvents.Register.landmarksAdded(new Identifier(ID, "landmarks_added"), (world, worldLandmarks, landmarks) -> {
-            HoofprintMapStorage.get(world.getRegistryKey()).landmarksAdded(world, worldLandmarks, landmarks);
-        });
-        SurveyorClientEvents.Register.landmarksRemoved(new Identifier(ID, "landmarks_removed"), (world, worldLandmarks, landmarks) -> {
-            HoofprintMapStorage.get(world.getRegistryKey()).landmarksRemoved(world, worldLandmarks, landmarks);
-        });
+		SurveyorClientEvents.Register.terrainUpdated(new Identifier(ID, "terrain_updated"), (world, summary, chunks) -> {
+			HoofprintMapStorage.get(world.getRegistryKey()).terrainUpdated(world, summary, chunks);
+		});
+		SurveyorClientEvents.Register.landmarksAdded(new Identifier(ID, "landmarks_added"), (world, worldLandmarks, landmarks) -> {
+			HoofprintMapStorage.get(world.getRegistryKey()).landmarksAdded(world, worldLandmarks, landmarks);
+		});
+		SurveyorClientEvents.Register.landmarksRemoved(new Identifier(ID, "landmarks_removed"), (world, worldLandmarks, landmarks) -> {
+			HoofprintMapStorage.get(world.getRegistryKey()).landmarksRemoved(world, worldLandmarks, landmarks);
+		});
 
-        LOGGER.info("[Hoofprint] They went thatta-way!");
-    }
+		LOGGER.info("[Hoofprint] They went thatta-way!");
+	}
 }

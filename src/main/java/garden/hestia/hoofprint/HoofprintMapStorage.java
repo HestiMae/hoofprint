@@ -37,6 +37,10 @@ public class HoofprintMapStorage {
     Map<ChunkPos, RegistryPalette<Biome>.ValueView> biomePalettes = new HashMap<>();
     Map<ChunkPos, RegistryPalette<Block>.ValueView> blockPalettes = new HashMap<>();
 
+    public static HoofprintMapStorage get(RegistryKey<World> dim) {
+        return HoofprintMapStorage.INSTANCES.computeIfAbsent(dim, (key) -> new HoofprintMapStorage());
+    }
+
     public void worldLoad(ClientWorld world, WorldSummary summary, ClientPlayerEntity player, Map<ChunkPos, BitSet> terrain, Multimap<RegistryKey<Structure>, ChunkPos> structures, Multimap<LandmarkType<?>, BlockPos> landmarks) {
         terrainUpdated(world, summary.terrain(), WorldTerrainSummary.toKeys(terrain));
         landmarksAdded(world, summary.landmarks(), landmarks);
@@ -67,9 +71,5 @@ public class HoofprintMapStorage {
             this.landmarks.computeIfAbsent(type, t -> new HashMap<>()).remove(pos);
             if (this.landmarks.get(type).isEmpty()) this.landmarks.remove(type);
         });
-    }
-
-    public static HoofprintMapStorage get(RegistryKey<World> dim) {
-        return HoofprintMapStorage.INSTANCES.computeIfAbsent(dim, (key) -> new HoofprintMapStorage());
     }
 }
