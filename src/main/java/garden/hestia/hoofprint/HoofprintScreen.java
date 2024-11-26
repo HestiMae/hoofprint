@@ -65,7 +65,7 @@ public class HoofprintScreen extends Screen {
 				int landmarkCenterX = width / 2 + pos.getX() - roundCentreX;
 				int landmarkCenterY = height / 2 + pos.getZ() - roundCentreZ - 4;
 				double mouseDistance = (mouseX - landmarkCenterX) * (mouseX - landmarkCenterX) + (mouseY - landmarkCenterY) * (mouseY - landmarkCenterY);
-				if (mouseDistance < 25 && mouseDistance < bestDistance) {
+				if (!hasShiftDown() && mouseDistance < 25 && mouseDistance < bestDistance) {
 					hoveredLandmark = landmark;
 					bestDistance = mouseDistance;
 				}
@@ -118,6 +118,11 @@ public class HoofprintScreen extends Screen {
 				if (landmarkColors != null) RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
 				context.drawTexture(Identifier.tryParse("textures/map/decorations/white_banner.png"), landmarkScreenX - 4, landmarkScreenY - 8, 8, 8, 0, 0, 8, 8, 8, 8);
 				RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+				if (hasShiftDown()) {
+					// Draw Text Below Marker
+					int textX = landmarkScreenX - this.textRenderer.getWidth(landmark.name()) / 2;
+					context.drawText(this.textRenderer, landmark.name(), textX, landmarkScreenY, 0xFFFFFF, true);
+				}
 			}
 		}
 
