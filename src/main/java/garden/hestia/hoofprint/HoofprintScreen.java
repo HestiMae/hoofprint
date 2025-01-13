@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import folk.sisby.surveyor.PlayerSummary;
 import folk.sisby.surveyor.client.SurveyorClient;
 import folk.sisby.surveyor.landmark.Landmark;
+import folk.sisby.surveyor.landmark.VariableLandmark;
 import folk.sisby.surveyor.terrain.LayerSummary;
 import folk.sisby.surveyor.terrain.RegionSummary;
 import folk.sisby.surveyor.util.RegistryPalette;
@@ -16,6 +17,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -26,6 +28,7 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -127,7 +130,13 @@ public class HoofprintScreen extends Screen {
 		}
 
 		if (hoveredPlayer != null && hoveredPlayer.username() != null) context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), mouseX, mouseY);
-		if (hoveredLandmark != null) context.drawTooltip(this.textRenderer, hoveredLandmark.name(), mouseX, mouseY);
+		if (hoveredLandmark != null) {
+			if (hoveredLandmark instanceof VariableLandmark<?> vl && vl.optionalDescription().isPresent()) {
+				context.drawTooltip(this.textRenderer, List.of(hoveredLandmark.name(), vl.description().copy().formatted(Formatting.GRAY)), mouseX, mouseY);
+			} else {
+				context.drawTooltip(this.textRenderer, hoveredLandmark.name(), mouseX, mouseY);
+			}
+		}
 	}
 
 	int[][] getColors(LayerSummary.Raw layer, @Nullable LayerSummary.Raw aboveLayer, RegistryPalette<Biome>.ValueView biomePalette, RegistryPalette<Block>.ValueView blockPalette) {
