@@ -2,6 +2,7 @@ package garden.hestia.hoofprint;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import folk.sisby.surveyor.PlayerSummary;
+import folk.sisby.surveyor.Surveyor;
 import folk.sisby.surveyor.client.SurveyorClient;
 import folk.sisby.surveyor.landmark.Landmark;
 import folk.sisby.surveyor.landmark.VariableLandmark;
@@ -24,6 +25,7 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
+import net.minecraft.world.border.WorldBorder;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
@@ -56,6 +58,22 @@ public class HoofprintScreen extends Screen {
 			int y = minBlockZ - roundCentreZ + height / 2;
 			if (x > width || x < -512 || y > width || y < -512) continue;
 			context.drawTexture(texture, x, y, 512, 512, 0, 0, 512, 512, 512, 512);
+		}
+		if (Hoofprint.CONFIG.renderBorder)
+		{
+			WorldBorder worldBorder = client.world.getWorldBorder();
+			double size = worldBorder.getSize();
+			int color = worldBorder.getStage().getColor() | 0xff000000;
+			double x1 = worldXToScreenX(worldBorder.getCenterX() - size / 2.0);
+			double x2 = worldXToScreenX(worldBorder.getCenterX() + size / 2.0);
+			double y1 = worldZToScreenY(worldBorder.getCenterZ() - size / 2.0);
+			double y2 = worldZToScreenY(worldBorder.getCenterZ() + size / 2.0);
+			int clampedx1 = (int) Math.max(x1, -1);
+			int clampedx2 = (int) Math.min(x2,  width + 1);
+			int clampedy1 = (int) Math.max(y1, -1);
+			int clampedy2 = (int) Math.min(y2, height + 1);
+
+			context.drawBorder(clampedx1, clampedy1, clampedx2 - clampedx1, clampedy2 - clampedy1, color);
 		}
 
 		Landmark<?> hoveredLandmark = null;
@@ -112,8 +130,8 @@ public class HoofprintScreen extends Screen {
 			for (Map.Entry<BlockPos, Landmark<?>> entry : map.entrySet()) {
 				BlockPos pos = entry.getKey();
 				Landmark<?> landmark = entry.getValue();
-				int landmarkScreenX = width / 2 + pos.getX() - roundCentreX;
-				int landmarkScreenY = height / 2 + pos.getZ() - roundCentreZ;
+				int landmarkScreenX = (int) worldXToScreenX(pos.getX());
+				int landmarkScreenY = (int) worldZToScreenY(pos.getZ());
 				float[] landmarkColors = landmark.color() == null ? null : landmark.color().getColorComponents();
 				boolean mouseOver = landmark == hoveredLandmark;
 				float tint = mouseOver ? 0.7F : 1.0F;
@@ -248,5 +266,12 @@ public class HoofprintScreen extends Screen {
 		centreX -= deltaX;
 		centreZ -= deltaY;
 		return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+	}
+
+	double worldXToScreenX(double worldX) {
+		return width / 2.0 + worldX - Math.round(centreX);
+	}
+	double worldZToScreenY(double worldZ) {
+		return height / 2.0 + worldZ - Math.round(centreZ);
 	}
 }

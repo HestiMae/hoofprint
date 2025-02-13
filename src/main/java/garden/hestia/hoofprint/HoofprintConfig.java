@@ -8,4 +8,6 @@ public class HoofprintConfig extends WrappedConfig {
 	public boolean transparentWater = true;
 	public boolean lighting = true;
 	public boolean showOffline = true;
+	public boolean renderBorder = true;
+	public boolean renderOutsideBorder = true;
 }
