@@ -49,6 +49,14 @@ public class HoofprintScreen extends Screen {
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
 		int roundCentreX = (int) Math.round(centreX);
 		int roundCentreZ = (int) Math.round(centreZ);
+
+		WorldBorder worldBorder = client.world.getWorldBorder();
+		double size = worldBorder.getSize();
+		double borderX1 = worldXToScreenX(worldBorder.getCenterX() - size / 2.0);
+		double borderX2 = worldXToScreenX(worldBorder.getCenterX() + size / 2.0);
+		double borderY1 = worldZToScreenY(worldBorder.getCenterZ() - size / 2.0);
+		double borderY2 = worldZToScreenY(worldBorder.getCenterZ() + size / 2.0);
+
 		for (Map.Entry<ChunkPos, Identifier> entry : regionTextures.entrySet()) {
 			ChunkPos regionPos = entry.getKey();
 			Identifier texture = entry.getValue();
@@ -57,21 +65,20 @@ public class HoofprintScreen extends Screen {
 			int x = minBlockX - roundCentreX + width / 2;
 			int y = minBlockZ - roundCentreZ + height / 2;
 			if (x > width || x < -512 || y > width || y < -512) continue;
+			if (!Hoofprint.CONFIG.renderOutsideBorder)
+			{
+				if (x > borderX2 || x < borderX1 -512 || y > borderY2 || y < borderY1 - 512) continue;
+			}
 			context.drawTexture(texture, x, y, 512, 512, 0, 0, 512, 512, 512, 512);
 		}
 		if (Hoofprint.CONFIG.renderBorder)
 		{
-			WorldBorder worldBorder = client.world.getWorldBorder();
-			double size = worldBorder.getSize();
 			int color = worldBorder.getStage().getColor() | 0xff000000;
-			double x1 = worldXToScreenX(worldBorder.getCenterX() - size / 2.0);
-			double x2 = worldXToScreenX(worldBorder.getCenterX() + size / 2.0);
-			double y1 = worldZToScreenY(worldBorder.getCenterZ() - size / 2.0);
-			double y2 = worldZToScreenY(worldBorder.getCenterZ() + size / 2.0);
-			int clampedx1 = (int) Math.max(x1, -1);
-			int clampedx2 = (int) Math.min(x2,  width + 1);
-			int clampedy1 = (int) Math.max(y1, -1);
-			int clampedy2 = (int) Math.min(y2, height + 1);
+
+			int clampedx1 = (int) Math.max(borderX1, -1);
+			int clampedx2 = (int) Math.min(borderX2,  width + 1);
+			int clampedy1 = (int) Math.max(borderY1, -1);
+			int clampedy2 = (int) Math.min(borderY2, height + 1);
 
 			context.drawBorder(clampedx1, clampedy1, clampedx2 - clampedx1, clampedy2 - clampedy1, color);
 		}
