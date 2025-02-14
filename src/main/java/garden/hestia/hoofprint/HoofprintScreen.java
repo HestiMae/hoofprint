@@ -2,6 +2,7 @@ package garden.hestia.hoofprint;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import folk.sisby.surveyor.PlayerSummary;
+import folk.sisby.surveyor.Surveyor;
 import folk.sisby.surveyor.client.SurveyorClient;
 import folk.sisby.surveyor.landmark.Landmark;
 import folk.sisby.surveyor.landmark.VariableLandmark;
@@ -24,6 +25,7 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
+import net.minecraft.world.border.WorldBorder;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
@@ -48,15 +50,48 @@ public class HoofprintScreen extends Screen {
 		super.render(context, mouseX, mouseY, delta);
 		int roundCentreX = (int) Math.round(centreX);
 		int roundCentreZ = (int) Math.round(centreZ);
+
+		WorldBorder worldBorder = client.world.getWorldBorder();
+		double size = worldBorder.getSize();
+		double borderX1 = worldXToScreenX(worldBorder.getCenterX() - size / 2.0);
+		double borderX2 = worldXToScreenX(worldBorder.getCenterX() + size / 2.0);
+		double borderY1 = worldZToScreenY(worldBorder.getCenterZ() - size / 2.0);
+		double borderY2 = worldZToScreenY(worldBorder.getCenterZ() + size / 2.0);
+
 		for (Map.Entry<ChunkPos, Identifier> entry : regionTextures.entrySet()) {
+			int drawWidth = 512;
+			int drawHeight = 512;
 			ChunkPos regionPos = entry.getKey();
 			Identifier texture = entry.getValue();
 			int minBlockX = regionPos.x * 32 * 16;
 			int minBlockZ = regionPos.z * 32 * 16;
 			int x = minBlockX - roundCentreX + width / 2;
 			int y = minBlockZ - roundCentreZ + height / 2;
+			int drawX = x;
+			int drawY = y;
 			if (x > width || x < -512 || y > width || y < -512) continue;
-			context.drawTexture(texture, x, y, 512, 512, 0, 0, 512, 512, 512, 512);
+			if (!Hoofprint.CONFIG.renderOutsideBorder)
+			{
+				drawX = (int) Math.max(x, borderX1);
+				drawY = (int) Math.max(y, borderY1);
+				double drawX2 = Math.min(x + 512, borderX2);
+				double drawY2 = Math.min(y + 512, borderY2);
+				drawWidth = (int) (drawX2 - drawX);
+				drawHeight = (int) (drawY2 - drawY);
+				if (drawHeight == 0 || drawWidth == 0) continue;
+			}
+			context.drawTexture(texture, drawX, drawY, drawWidth, drawHeight, drawX - x, drawY - y, drawWidth, drawHeight, 512, 512);
+		}
+		if (Hoofprint.CONFIG.renderBorder)
+		{
+			int color = worldBorder.getStage().getColor() | 0xff000000;
+
+			int clampedx1 = (int) Math.max(borderX1, -1);
+			int clampedx2 = (int) Math.min(borderX2,  width + 1);
+			int clampedy1 = (int) Math.max(borderY1, -1);
+			int clampedy2 = (int) Math.min(borderY2, height + 1);
+
+			context.drawBorder(clampedx1, clampedy1, clampedx2 - clampedx1, clampedy2 - clampedy1, color);
 		}
 
 		Landmark<?> hoveredLandmark = null;
@@ -113,8 +148,8 @@ public class HoofprintScreen extends Screen {
 			for (Map.Entry<BlockPos, Landmark<?>> entry : map.entrySet()) {
 				BlockPos pos = entry.getKey();
 				Landmark<?> landmark = entry.getValue();
-				int landmarkScreenX = width / 2 + pos.getX() - roundCentreX;
-				int landmarkScreenY = height / 2 + pos.getZ() - roundCentreZ;
+				int landmarkScreenX = (int) worldXToScreenX(pos.getX());
+				int landmarkScreenY = (int) worldZToScreenY(pos.getZ());
 				float[] landmarkColors = landmark.color() == null ? null : ColorUtil.getColorFromArgb(landmark.color().getFireworkColor());
 				boolean mouseOver = landmark == hoveredLandmark;
 				float tint = mouseOver ? 0.7F : 1.0F;
@@ -248,5 +283,12 @@ public class HoofprintScreen extends Screen {
 		centreX -= deltaX;
 		centreZ -= deltaY;
 		return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+	}
+
+	double worldXToScreenX(double worldX) {
+		return width / 2.0 + worldX - Math.round(centreX);
+	}
+	double worldZToScreenY(double worldZ) {
+		return height / 2.0 + worldZ - Math.round(centreZ);
 	}
 }
