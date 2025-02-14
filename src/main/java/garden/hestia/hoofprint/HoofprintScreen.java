@@ -58,18 +58,28 @@ public class HoofprintScreen extends Screen {
 		double borderY2 = worldZToScreenY(worldBorder.getCenterZ() + size / 2.0);
 
 		for (Map.Entry<ChunkPos, Identifier> entry : regionTextures.entrySet()) {
+			int drawWidth = 512;
+			int drawHeight = 512;
 			ChunkPos regionPos = entry.getKey();
 			Identifier texture = entry.getValue();
 			int minBlockX = regionPos.x * 32 * 16;
 			int minBlockZ = regionPos.z * 32 * 16;
 			int x = minBlockX - roundCentreX + width / 2;
 			int y = minBlockZ - roundCentreZ + height / 2;
+			int drawX = x;
+			int drawY = y;
 			if (x > width || x < -512 || y > width || y < -512) continue;
 			if (!Hoofprint.CONFIG.renderOutsideBorder)
 			{
-				if (x > borderX2 || x < borderX1 -512 || y > borderY2 || y < borderY1 - 512) continue;
+				drawX = (int) Math.max(x, borderX1);
+				drawY = (int) Math.max(y, borderY1);
+				double drawX2 = Math.min(x + 512, borderX2);
+				double drawY2 = Math.min(y + 512, borderY2);
+				drawWidth = (int) (drawX2 - drawX);
+				drawHeight = (int) (drawY2 - drawY);
+				if (drawHeight == 0 || drawWidth == 0) continue;
 			}
-			context.drawTexture(texture, x, y, 512, 512, 0, 0, 512, 512, 512, 512);
+			context.drawTexture(texture, drawX, drawY, drawWidth, drawHeight, drawX - x, drawY - y, drawWidth, drawHeight, 512, 512);
 		}
 		if (Hoofprint.CONFIG.renderBorder)
 		{
