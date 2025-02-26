@@ -71,8 +71,7 @@ public class HoofprintScreen extends Screen {
 			int drawX = x;
 			int drawY = y;
 			if (x > width || x < -512 || y > width || y < -512) continue;
-			if (!Hoofprint.CONFIG.renderOutsideBorder)
-			{
+			if (!Hoofprint.CONFIG.renderOutsideBorder) {
 				drawX = (int) Math.max(x, borderX1);
 				drawY = (int) Math.max(y, borderY1);
 				double drawX2 = Math.min(x + 512, borderX2);
@@ -83,12 +82,11 @@ public class HoofprintScreen extends Screen {
 			}
 			context.drawTexture(texture, drawX, drawY, drawWidth, drawHeight, drawX - x, drawY - y, drawWidth, drawHeight, 512, 512);
 		}
-		if (Hoofprint.CONFIG.renderBorder)
-		{
+		if (Hoofprint.CONFIG.renderBorder) {
 			int color = worldBorder.getStage().getColor() | 0xff000000;
 
 			int clampedx1 = (int) Math.max(borderX1, -1);
-			int clampedx2 = (int) Math.min(borderX2,  width + 1);
+			int clampedx2 = (int) Math.min(borderX2, width + 1);
 			int clampedy1 = (int) Math.max(borderY1, -1);
 			int clampedy2 = (int) Math.min(borderY2, height + 1);
 
@@ -155,7 +153,7 @@ public class HoofprintScreen extends Screen {
 				BlockPos pos = landmark.get(LandmarkComponentTypes.POS);
 				int landmarkScreenX = (int) worldXToScreenX(pos.getX());
 				int landmarkScreenY = (int) worldZToScreenY(pos.getZ());
-				float[] landmarkColors = landmark.contains(LandmarkComponentTypes.COLOR) ? ColorUtil.getColorFromArgb(0xFF000000 | landmark.get(LandmarkComponentTypes.COLOR)) : null;
+				float[] landmarkColors = (landmark.contains(LandmarkComponentTypes.COLOR) && !landmark.contains(LandmarkComponentTypes.STACK)) ? ColorUtil.getColorFromArgb(0xFF000000 | landmark.get(LandmarkComponentTypes.COLOR)) : null;
 				boolean mouseOver = landmark == hoveredLandmark;
 				float tint = mouseOver ? 0.7F : 1.0F;
 				RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
@@ -299,6 +297,7 @@ public class HoofprintScreen extends Screen {
 	double worldXToScreenX(double worldX) {
 		return width / 2.0 + worldX - Math.round(centreX);
 	}
+
 	double worldZToScreenY(double worldZ) {
 		return height / 2.0 + worldZ - Math.round(centreZ);
 	}
