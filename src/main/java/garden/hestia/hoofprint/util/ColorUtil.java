@@ -3,6 +3,7 @@ package garden.hestia.hoofprint.util;
 import garden.hestia.hoofprint.Hoofprint;
 import net.minecraft.block.Block;
 import net.minecraft.client.color.world.FoliageColors;
+import net.minecraft.util.math.ColorHelper;
 import net.minecraft.world.biome.Biome;
 
 import java.util.Map;
@@ -115,6 +116,10 @@ public class ColorUtil {
 		int r = (argbColor >> 16) & 0xFF;
 		int b = argbColor & 0xFF;
 		return (argbColor & 0xFF00FF00) | (b << 16) | r;
+	}
+
+	public static float[] getColorFromArgb(int color) {
+		return new float[]{ColorHelper.Argb.getRed(color) / 255f, ColorHelper.Argb.getGreen(color) / 255f, ColorHelper.Argb.getBlue(color) / 255f};
 	}
 
 	public enum Brightness {

@@ -154,7 +154,7 @@ public class HoofprintScreen extends Screen {
 				BlockPos pos = landmark.get(LandmarkComponentTypes.POS);
 				int landmarkScreenX = (int) worldXToScreenX(pos.getX());
 				int landmarkScreenY = (int) worldZToScreenY(pos.getZ());
-				float[] landmarkColors = new float[]{1.0F, 1.0F, 1.0F}; // fixme
+				float[] landmarkColors = (landmark.contains(LandmarkComponentTypes.COLOR) && !landmark.contains(LandmarkComponentTypes.STACK)) ? ColorUtil.getColorFromArgb(landmark.get(LandmarkComponentTypes.COLOR)) : null;
 				boolean mouseOver = landmark == hoveredLandmark;
 				float tint = mouseOver ? 0.7F : 1.0F;
 				RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
