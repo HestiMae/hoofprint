@@ -24,6 +24,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.ColumnPos;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
@@ -44,6 +45,8 @@ public class HoofprintScreen extends Screen {
 	private double centreX = 0;
 	private double centreZ = 0;
 	private Landmark hoveredLandmark = null;
+	private int hoveredWorldX = 0;
+	private int hoveredWorldZ = 0;
 
 	public HoofprintScreen() {
 		super(Text.of("Hoofprint World Map"));
@@ -53,6 +56,8 @@ public class HoofprintScreen extends Screen {
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
 		int roundCentreX = (int) Math.round(centreX);
 		int roundCentreZ = (int) Math.round(centreZ);
+		hoveredWorldX = (int) Math.floor(screenXToWorldX(mouseX));
+		hoveredWorldZ = (int) Math.floor(screenYToWorldZ(mouseY));
 
 		WorldBorder worldBorder = client.world.getWorldBorder();
 		double size = worldBorder.getSize();
@@ -291,6 +296,20 @@ public class HoofprintScreen extends Screen {
 					WorldSummary.of(client.world).landmarks().remove(client.world, hoveredLandmark.owner(), hoveredLandmark.id());
 				}
 			}
+			case GLFW.GLFW_KEY_INSERT -> {
+				ChunkPos cp = new ColumnPos(hoveredWorldX, hoveredWorldZ).toChunkPos();
+				ChunkPos rp = new ChunkPos(RegionSummary.chunkToRegion(cp.x), RegionSummary.chunkToRegion(cp.z));
+				LayerSummary.Raw layer = this.mapStorage.bakedTerrain.get(rp)[RegionSummary.regionRelative(cp.x)][RegionSummary.regionRelative(cp.z)];
+				RegistryPalette<Block>.ValueView blockPalette = mapStorage.blockPalettes.get(rp);
+				int blockIndex = (hoveredWorldX - cp.getStartX()) * 16 + (hoveredWorldZ - cp.getStartZ());
+				Block block = blockPalette.get(layer.blocks()[blockIndex]);
+				int y = client.world.getHeight() - layer.depths()[blockIndex];
+				WorldSummary.of(client.world).landmarks().put(client.world, Landmark.createIncremental(WorldSummary.of(client.world).landmarks(), SurveyorClient.getClientUuid(), new Identifier("hoofprint", "block"), builder -> builder
+					.add(LandmarkComponentTypes.POS, new BlockPos(hoveredWorldX, y, hoveredWorldZ))
+					.add(LandmarkComponentTypes.NAME, block.getName())
+					.add(LandmarkComponentTypes.STACK, block.asItem().getDefaultStack())
+				));
+			}
 			default -> {
 				return super.keyPressed(keyCode, scanCode, modifiers);
 			}
@@ -311,4 +330,6 @@ public class HoofprintScreen extends Screen {
 	double worldZToScreenY(double worldZ) {
 		return height / 2.0 + worldZ - Math.round(centreZ);
 	}
+	double screenXToWorldX(double screenX) { return screenX + Math.round(centreX) - width / 2.0; }
+	double screenYToWorldZ(double screenY) { return screenY + Math.round(centreZ) - height / 2.0;}
 }
