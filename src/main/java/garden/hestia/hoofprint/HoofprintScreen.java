@@ -2,8 +2,10 @@ package garden.hestia.hoofprint;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import folk.sisby.surveyor.PlayerSummary;
+import folk.sisby.surveyor.WorldSummary;
 import folk.sisby.surveyor.client.SurveyorClient;
 import folk.sisby.surveyor.landmark.Landmark;
+import folk.sisby.surveyor.landmark.WorldLandmarks;
 import folk.sisby.surveyor.landmark.component.LandmarkComponentTypes;
 import folk.sisby.surveyor.terrain.LayerSummary;
 import folk.sisby.surveyor.terrain.RegionSummary;
@@ -41,6 +43,7 @@ public class HoofprintScreen extends Screen {
 	HoofprintMapStorage mapStorage;
 	private double centreX = 0;
 	private double centreZ = 0;
+	private Landmark hoveredLandmark = null;
 
 	public HoofprintScreen() {
 		super(Text.of("Hoofprint World Map"));
@@ -94,7 +97,7 @@ public class HoofprintScreen extends Screen {
 			context.drawBorder(clampedx1, clampedy1, clampedx2 - clampedx1, clampedy2 - clampedy1, color);
 		}
 
-		Landmark hoveredLandmark = null;
+		hoveredLandmark = null;
 		double bestDistance = Double.MAX_VALUE;
 		for (Map<Identifier, Landmark> map : this.mapStorage.landmarks.values()) {
 			for (Map.Entry<Identifier, Landmark> entry : map.entrySet()) {
@@ -154,7 +157,7 @@ public class HoofprintScreen extends Screen {
 				BlockPos pos = landmark.get(LandmarkComponentTypes.POS);
 				int landmarkScreenX = (int) worldXToScreenX(pos.getX());
 				int landmarkScreenY = (int) worldZToScreenY(pos.getZ());
-				float[] landmarkColors = (landmark.contains(LandmarkComponentTypes.COLOR) && !landmark.contains(LandmarkComponentTypes.STACK)) ? ColorUtil.getColorFromArgb(landmark.get(LandmarkComponentTypes.COLOR)) : null;
+				float[] landmarkColors = (landmark.contains(LandmarkComponentTypes.COLOR) && !landmark.contains(LandmarkComponentTypes.STACK)) ? ColorUtil.getColorFromArgb(landmark.get(LandmarkComponentTypes.COLOR)) : new float[]{1.0f, 1.0f, 1.0f};
 				boolean mouseOver = landmark == hoveredLandmark;
 				float tint = mouseOver ? 0.7F : 1.0F;
 				RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
@@ -282,6 +285,12 @@ public class HoofprintScreen extends Screen {
 			case GLFW.GLFW_KEY_DOWN -> centreZ++;
 			case GLFW.GLFW_KEY_LEFT -> centreX--;
 			case GLFW.GLFW_KEY_RIGHT -> centreX++;
+			case GLFW.GLFW_KEY_DELETE -> {
+				if (hoveredLandmark != null && (SurveyorClient.getClientUuid().equals(hoveredLandmark.owner()) || (hoveredLandmark.owner().equals(WorldLandmarks.GLOBAL) && client.player.hasPermissionLevel(2))))
+				{
+					WorldSummary.of(client.world).landmarks().remove(client.world, hoveredLandmark.owner(), hoveredLandmark.id());
+				}
+			}
 			default -> {
 				return super.keyPressed(keyCode, scanCode, modifiers);
 			}
