@@ -3,7 +3,6 @@ package garden.hestia.hoofprint;
 import com.google.common.collect.Multimap;
 import folk.sisby.surveyor.WorldSummary;
 import folk.sisby.surveyor.landmark.Landmark;
-import folk.sisby.surveyor.landmark.LandmarkType;
 import folk.sisby.surveyor.landmark.WorldLandmarks;
 import folk.sisby.surveyor.terrain.ChunkSummary;
 import folk.sisby.surveyor.terrain.LayerSummary;
@@ -16,7 +15,7 @@ import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.registry.RegistryKey;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
@@ -26,6 +25,7 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public class HoofprintMapStorage {
 	private static final Map<RegistryKey<World>, HoofprintMapStorage> INSTANCES = new HashMap<>();
@@ -35,7 +35,7 @@ public class HoofprintMapStorage {
 	int minChunkZ = 0;
 	int maxChunkZ = -1;
 	Map<ChunkPos, LayerSummary.Raw[][]> bakedTerrain = new HashMap<>();
-	Map<LandmarkType<?>, Map<BlockPos, Landmark<?>>> landmarks = new HashMap<>();
+	Map<UUID, Map<Identifier, Landmark>> landmarks = new HashMap<>();
 	Map<ChunkPos, RegistryPalette<Biome>.ValueView> biomePalettes = new HashMap<>();
 	Map<ChunkPos, RegistryPalette<Block>.ValueView> blockPalettes = new HashMap<>();
 
@@ -47,7 +47,7 @@ public class HoofprintMapStorage {
 		INSTANCES.clear();
 	}
 
-	public void worldLoad(ClientWorld world, WorldSummary summary, ClientPlayerEntity player, Map<ChunkPos, BitSet> terrain, Multimap<RegistryKey<Structure>, ChunkPos> structures, Multimap<LandmarkType<?>, BlockPos> landmarks) {
+	public void worldLoad(ClientWorld world, WorldSummary summary, ClientPlayerEntity player, Map<ChunkPos, BitSet> terrain, Multimap<RegistryKey<Structure>, ChunkPos> structures, Multimap<UUID, Identifier> landmarks) {
 		terrainUpdated(world, summary.terrain(), WorldTerrainSummary.toKeys(terrain));
 		landmarksAdded(world, summary.landmarks(), landmarks);
 	}
@@ -66,13 +66,13 @@ public class HoofprintMapStorage {
 		}
 	}
 
-	public void landmarksAdded(World world, WorldLandmarks worldLandmarks, Multimap<LandmarkType<?>, BlockPos> landmarks) {
-		landmarks.forEach((type, pos) -> {
-			this.landmarks.computeIfAbsent(type, t -> new HashMap<>()).put(pos, worldLandmarks.get(type, pos));
+	public void landmarksAdded(World world, WorldLandmarks worldLandmarks, Multimap<UUID, Identifier> landmarks) {
+		landmarks.forEach((uuid, id) -> {
+			this.landmarks.computeIfAbsent(uuid, t -> new HashMap<>()).put(id, worldLandmarks.get(uuid, id));
 		});
 	}
 
-	public void landmarksRemoved(World world, WorldLandmarks worldLandmarks, Multimap<LandmarkType<?>, BlockPos> landmarks) {
+	public void landmarksRemoved(World world, WorldLandmarks worldLandmarks, Multimap<UUID, Identifier> landmarks) {
 		landmarks.forEach((type, pos) -> {
 			this.landmarks.computeIfAbsent(type, t -> new HashMap<>()).remove(pos);
 			if (this.landmarks.get(type).isEmpty()) this.landmarks.remove(type);
