@@ -306,7 +306,7 @@ public class HoofprintScreen extends Screen {
 				int blockIndex = (hoveredWorldX - cp.getStartX()) * 16 + (hoveredWorldZ - cp.getStartZ());
 				Block block = blockPalette.get(layer.blocks()[blockIndex]);
 				int y = client.world.getHeight() - layer.depths()[blockIndex];
-				WorldSummary.of(client.world).landmarks().put(client.world, Landmark.createIncremental(WorldSummary.of(client.world).landmarks(), SurveyorClient.getClientUuid(), new Identifier("hoofprint", "block"), builder -> builder
+				WorldSummary.of(client.world).landmarks().put(client.world, Landmark.createIncremental(WorldSummary.of(client.world).landmarks(), SurveyorClient.getClientUuid(), Identifier.of("hoofprint", "block"), builder -> builder
 					.add(LandmarkComponentTypes.POS, new BlockPos(hoveredWorldX, y, hoveredWorldZ))
 					.add(LandmarkComponentTypes.NAME, block.getName())
 					.add(LandmarkComponentTypes.STACK, block.asItem().getDefaultStack())
@@ -320,7 +320,7 @@ public class HoofprintScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+	public boolean mouseScrolled(double mouseX, double mouseY, double hz, double amount) {
 		guiScale = (int) MathHelper.clamp(guiScale + amount, 1, 10);
 
 		return true;
