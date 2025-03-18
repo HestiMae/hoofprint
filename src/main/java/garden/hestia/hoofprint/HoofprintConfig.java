@@ -10,4 +10,5 @@ public class HoofprintConfig extends WrappedConfig {
 	public boolean showOffline = true;
 	public boolean renderBorder = true;
 	public boolean renderOutsideBorder = true;
+	public boolean logMapBaking = false;
 }

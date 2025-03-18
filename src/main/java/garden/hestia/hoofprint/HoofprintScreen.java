@@ -8,15 +8,12 @@ import folk.sisby.surveyor.landmark.Landmark;
 import folk.sisby.surveyor.landmark.WorldLandmarks;
 import folk.sisby.surveyor.landmark.component.LandmarkComponentTypes;
 import folk.sisby.surveyor.terrain.LayerSummary;
-import folk.sisby.surveyor.terrain.RegionSummary;
-import folk.sisby.surveyor.util.RegistryPalette;
+import folk.sisby.surveyor.terrain.WorldTerrainSummary;
 import garden.hestia.hoofprint.util.ColorUtil;
-import garden.hestia.hoofprint.util.LightMapUtil;
 import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.text.Text;
@@ -24,20 +21,15 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.*;
 import net.minecraft.world.World;
-import net.minecraft.world.biome.Biome;
 import net.minecraft.world.border.WorldBorder;
-import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public class HoofprintScreen extends Screen {
-	public static final String TEXTURE_PREFIX = "hoofprint/map";
-	private final Map<ChunkPos, Identifier> regionTextures = new HashMap<>();
 	HoofprintMapStorage mapStorage;
 	private double centreX = 0;
 	private double centreZ = 0;
@@ -67,7 +59,7 @@ public class HoofprintScreen extends Screen {
 		double borderY1 = worldZToRenderY(worldBorder.getCenterZ() - size / 2.0);
 		double borderY2 = worldZToRenderY(worldBorder.getCenterZ() + size / 2.0);
 
-		for (Map.Entry<ChunkPos, Identifier> entry : regionTextures.entrySet()) {
+		for (Map.Entry<ChunkPos, Identifier> entry : mapStorage.regionTextures.entrySet()) {
 			int drawWidth = 512;
 			int drawHeight = 512;
 			ChunkPos regionPos = entry.getKey();
@@ -197,81 +189,6 @@ public class HoofprintScreen extends Screen {
 		super.render(context, mouseX, mouseY, delta);
 	}
 
-	int[][] getColors(LayerSummary.Raw layer, @Nullable LayerSummary.Raw aboveLayer, RegistryPalette<Biome>.ValueView biomePalette, RegistryPalette<Block>.ValueView blockPalette) {
-		int[][] colors = new int[16][16];
-		for (int x = 0; x < 16; x++) {
-			for (int z = 0; z < 16; z++) {
-				int i = x * 16 + z;
-				if (!layer.exists().get(i)) continue;
-				int color;
-				int waterColor;
-				if (!Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0) {
-					color = ColorUtil.getWaterColor(biomePalette.get(layer.biomes()[i]));
-				} else {
-					color = ColorUtil.getBlockColour(blockPalette.get(layer.blocks()[i]), biomePalette.get(layer.biomes()[i]));
-				}
-				if (Hoofprint.CONFIG.topography) {
-					ColorUtil.Brightness brightness = ColorUtil.Brightness.NORMAL;
-					if (!Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0) {
-						brightness = ColorUtil.getBrightnessFromDepth(layer.waterDepths()[i], x, z);
-					} else if (z > 0) {
-						if (layer.depths()[i - 1] < layer.depths()[i]) brightness = ColorUtil.Brightness.LOW;
-						if (layer.depths()[i - 1] > layer.depths()[i]) brightness = ColorUtil.Brightness.HIGH;
-					} else if (aboveLayer != null) {
-						if (aboveLayer.depths()[x * 16 + 15] < layer.depths()[i]) brightness = ColorUtil.Brightness.LOW;
-						if (aboveLayer.depths()[x * 16 + 15] > layer.depths()[i])
-							brightness = ColorUtil.Brightness.HIGH;
-					}
-					color = ColorUtil.applyBrightnessRGB(brightness, color);
-				}
-				if (Hoofprint.CONFIG.lighting && (Hoofprint.CONFIG.transparentWater || layer.waterDepths()[i] == 0)) {
-					int blockLight = layer.lightLevels()[i];
-					int skyLight = Math.max(ColorUtil.SKY_LIGHT - layer.waterDepths()[i], 0);
-					color = ColorUtil.tint(color, LightMapUtil.DAY[skyLight][blockLight]);
-				}
-				if (Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0) {
-					waterColor = ColorUtil.getWaterColor(biomePalette.get(layer.biomes()[i]));
-					if (Hoofprint.CONFIG.lighting) {
-						int blockLight = layer.waterLights()[i];
-						int skyLight = ColorUtil.SKY_LIGHT;
-						waterColor = ColorUtil.tint(waterColor, LightMapUtil.DAY[skyLight][blockLight]);
-					}
-					color = ColorUtil.blend(color, waterColor, 0.6F);
-				}
-				colors[x][z] = color | 0xff000000;
-			}
-		}
-		return colors;
-	}
-
-	private void bake() {
-		mapStorage.bakedTerrain.forEach((rPos, flatChunks) -> {
-			NativeImageBackedTexture terrainTexture = new NativeImageBackedTexture(512, 512, true);
-			regionTextures.put(rPos, MinecraftClient.getInstance().getTextureManager().registerDynamicTexture(TEXTURE_PREFIX, terrainTexture));
-			ChunkPos regionChunkOrigin = new ChunkPos(RegionSummary.regionToChunk(rPos.x), RegionSummary.regionToChunk(rPos.z));
-			for (int chunkX = 0; chunkX < 32; chunkX++) {
-				for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
-					ChunkPos pos = new ChunkPos(regionChunkOrigin.x + chunkX, regionChunkOrigin.z + chunkZ);
-					LayerSummary.Raw layer = mapStorage.bakedTerrain.get(rPos)[chunkX][chunkZ];
-					LayerSummary.Raw aboveLayer = chunkZ > 0 ? mapStorage.bakedTerrain.get(rPos)[chunkX][chunkZ - 1] : mapStorage.bakedTerrain.containsKey(new ChunkPos(rPos.x, rPos.z - 1)) ? mapStorage.bakedTerrain.get(new ChunkPos(rPos.x, rPos.z - 1))[chunkX][31] : null;
-					RegistryPalette<Biome>.ValueView biomePalette = mapStorage.biomePalettes.get(pos);
-					RegistryPalette<Block>.ValueView blockPalette = mapStorage.blockPalettes.get(pos);
-					if (layer != null && biomePalette != null && blockPalette != null) {
-						int[][] colors = this.getColors(layer, aboveLayer, biomePalette, blockPalette);
-						for (int x = 0; x < colors.length; x++) {
-							for (int z = 0; z < colors[x].length; z++) {
-								int imageX = 16 * chunkX + x;
-								int imageY = 16 * chunkZ + z;
-								terrainTexture.getImage().setColor(imageX, imageY, ColorUtil.argbToABGR(colors[x][z]));
-							}
-						}
-					}
-				}
-			}
-			terrainTexture.upload();
-		});
-	}
-
 	@Override
 	protected void init() {
 		RegistryKey<World> dim = MinecraftClient.getInstance().world.getRegistryKey();
@@ -279,7 +196,6 @@ public class HoofprintScreen extends Screen {
 		this.centreX = MinecraftClient.getInstance().player.getBlockX();
 		this.centreZ = MinecraftClient.getInstance().player.getBlockZ();
 		super.init();
-		bake();
 	}
 
 	@Override
@@ -295,20 +211,28 @@ public class HoofprintScreen extends Screen {
 			case GLFW.GLFW_KEY_LEFT -> centreX--;
 			case GLFW.GLFW_KEY_RIGHT -> centreX++;
 			case GLFW.GLFW_KEY_DELETE -> {
+				if (client == null || client.world == null || client.player == null) return true;
 				if (hoveredLandmark != null && (SurveyorClient.getClientUuid().equals(hoveredLandmark.owner()) || (hoveredLandmark.owner().equals(WorldLandmarks.GLOBAL) && client.player.hasPermissionLevel(2))))
 				{
-					WorldSummary.of(client.world).landmarks().remove(client.world, hoveredLandmark.owner(), hoveredLandmark.id());
+					WorldTerrainSummary terrain = WorldSummary.of(client.world).terrain();
+					WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
+					if (terrain == null || landmarks == null) return true;
+					landmarks.remove(client.world, hoveredLandmark.owner(), hoveredLandmark.id());
 				}
 			}
 			case GLFW.GLFW_KEY_INSERT -> {
 				ChunkPos cp = new ColumnPos(hoveredWorldX, hoveredWorldZ).toChunkPos();
-				ChunkPos rp = new ChunkPos(RegionSummary.chunkToRegion(cp.x), RegionSummary.chunkToRegion(cp.z));
-				LayerSummary.Raw layer = this.mapStorage.bakedTerrain.get(rp)[RegionSummary.regionRelative(cp.x)][RegionSummary.regionRelative(cp.z)];
-				RegistryPalette<Block>.ValueView blockPalette = mapStorage.blockPalettes.get(rp);
+				if (client == null || client.world == null) return true;
+				WorldTerrainSummary terrain = WorldSummary.of(client.world).terrain();
+				WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
+				if (terrain == null || landmarks == null) return true;
+				LayerSummary.Raw layer = terrain.get(cp).toSingleLayer(null, null, client.world.getHeight());
+				if (layer == null) return true;
 				int blockIndex = (hoveredWorldX - cp.getStartX()) * 16 + (hoveredWorldZ - cp.getStartZ());
-				Block block = blockPalette.get(layer.blocks()[blockIndex]);
+				Block block = terrain.getBlockPalette(cp).get(layer.blocks()[blockIndex]);
+				if (block == null) return true;
 				int y = client.world.getHeight() - layer.depths()[blockIndex];
-				WorldSummary.of(client.world).landmarks().put(client.world, Landmark.createIncremental(WorldSummary.of(client.world).landmarks(), SurveyorClient.getClientUuid(), new Identifier("hoofprint", "block"), builder -> builder
+				landmarks.put(client.world, Landmark.createIncremental(landmarks, SurveyorClient.getClientUuid(), new Identifier("hoofprint", "block"), builder -> builder
 					.add(LandmarkComponentTypes.POS, new BlockPos(hoveredWorldX, y, hoveredWorldZ))
 					.add(LandmarkComponentTypes.NAME, block.getName())
 					.add(LandmarkComponentTypes.STACK, block.asItem().getDefaultStack())

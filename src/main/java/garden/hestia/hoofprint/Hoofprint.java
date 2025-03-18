@@ -30,6 +30,9 @@ public class Hoofprint implements ClientModInitializer {
 				c.setScreen(new HoofprintScreen());
 			}
 		});
+		ClientTickEvents.END_WORLD_TICK.register((c) -> {
+			HoofprintMapStorage.get(c.getRegistryKey()).tick(c);
+		});
 		ClientPlayConnectionEvents.DISCONNECT.register(HoofprintMapStorage::disconnect);
 
 		SurveyorClientEvents.Register.worldLoad(new Identifier(ID, "world_load"), (world, summary, player, terrain, structures, landmarks) -> {
