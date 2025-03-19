@@ -223,7 +223,8 @@ public class HoofprintScreen extends Screen {
 				WorldTerrainSummary terrain = WorldSummary.of(client.world).terrain();
 				WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
 				if (terrain == null || landmarks == null) return true;
-				LayerSummary.Raw layer = terrain.get(cp).toSingleLayer(null, null, client.world.getHeight());
+				Integer maxY = Hoofprint.CONFIG.dimensionMaxYValues.getOrDefault(client.world.getRegistryKey().getValue().toString(), null);
+				LayerSummary.Raw layer = terrain.get(cp).toSingleLayer(null, maxY, client.world.getHeight());
 				if (layer == null) return true;
 				int blockIndex = (hoveredWorldX - cp.getStartX()) * 16 + (hoveredWorldZ - cp.getStartZ());
 				Block block = terrain.getBlockPalette(cp).get(layer.blocks()[blockIndex]);
