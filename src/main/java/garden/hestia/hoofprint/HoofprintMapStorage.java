@@ -30,7 +30,6 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -39,6 +38,7 @@ public class HoofprintMapStorage {
 	public static final String TEXTURE_PREFIX = "hoofprint/map";
 
 	Map<ChunkPos, Identifier> regionTextures = new ConcurrentHashMap<>();
+	Map<ChunkPos, Identifier> caveRegionTextures = new ConcurrentHashMap<>();
 	Map<ChunkPos, BitSet> terrainFilled = new ConcurrentHashMap<>();
 	Map<ChunkPos, BitSet> terrainQueue = new ConcurrentHashMap<>();
 	Map<UUID, Map<Identifier, Landmark>> landmarks = new ConcurrentHashMap<>();
@@ -87,35 +87,40 @@ public class HoofprintMapStorage {
 		WorldTerrainSummary terrain = WorldSummary.of(world).terrain();
 		if (terrain == null) return;
 		RegionSummary region = terrain.getRegion(rPos);
-		LayerSummary.Raw[][] chunkSummaries = new LayerSummary.Raw[32][32];
+		LayerSummary.Raw[][] chunkSummaries = new LayerSummary.Raw[34][34];
 		BitSet filledArea = terrainFilled.computeIfAbsent(rPos, s -> new BitSet(RegionSummary.BITSET_SIZE));
 		changes.andNot(filledArea); // Don't live update the existing map.
 		if (changes.isEmpty()) return;
 		filledArea.or(changes);
 		if (Hoofprint.CONFIG.logMapBaking) Hoofprint.LOGGER.info("[Hoofprint] Baking {} chunks to the map texture for region {}", changes.cardinality(), rPos);
-		Integer maxY = Hoofprint.CONFIG.dimensionMaxYValues.getOrDefault(world.getRegistryKey().getValue().toString(), null);
 		ConstantLightMap lightMap = Hoofprint.CONFIG.dimensionLightMaps.getOrDefault(world.getRegistryKey().getValue().toString(), Hoofprint.CONFIG.lightMap);
-		changes.stream().forEach(i -> {
-			ChunkPos chunkPos = RegionSummary.chunkForBit(rPos, i);
-			ChunkSummary chunkSummary = region.get(chunkPos);
-			if (chunkSummary != null) chunkSummaries[RegionSummary.xForBit(i)][RegionSummary.zForBit(i)] = chunkSummary.toSingleLayer(null, maxY, world.getHeight());
-		});
-
-		RegionSummary aboveRegion = terrain.getRegion(new ChunkPos(rPos.x, rPos.z - 1));
 		ChunkPos regionChunkOrigin = new ChunkPos(RegionSummary.regionToChunk(rPos.x), RegionSummary.regionToChunk(rPos.z));
+		RegionSummary aboveRegion = terrain.getRegion(new ChunkPos(rPos.x, rPos.z - 1));
+
+		Integer maxY = Hoofprint.CONFIG.dimensionMaxYValues.getOrDefault(world.getRegistryKey().getValue().toString(), null);
+
 		Identifier textureId = regionTextures.computeIfAbsent(rPos, r -> MinecraftClient.getInstance().getTextureManager().registerDynamicTexture(TEXTURE_PREFIX, new NativeImageBackedTexture(512, 512, true)));
 		NativeImageBackedTexture terrainTexture = (NativeImageBackedTexture) MinecraftClient.getInstance().getTextureManager().getTexture(textureId);
 		NativeImage image = terrainTexture.getImage();
 		if (image == null) throw new IllegalStateException("[Hoofprint] WHO THREW OUT MY %s DYNAMIC TEXTURE".formatted(textureId));
+		changes.stream().forEach(i -> {
+			ChunkPos chunkPos = RegionSummary.chunkForBit(rPos, i);
+			ChunkSummary chunkSummary = region.get(chunkPos);
+			if (chunkSummary != null) chunkSummaries[RegionSummary.xForBit(i) + 1][RegionSummary.zForBit(i) + 1] = chunkSummary.toSingleLayer(null, maxY, world.getHeight());
+		});
 		for (int chunkX = 0; chunkX < 32; chunkX++) {
 			for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
 				ChunkPos chunkPos = new ChunkPos(regionChunkOrigin.x + chunkX, regionChunkOrigin.z + chunkZ);
-				LayerSummary.Raw layer = chunkSummaries[chunkX][chunkZ];
-				LayerSummary.Raw aboveLayer = chunkZ > 0 ? chunkSummaries[chunkX][chunkZ - 1] : aboveRegion != null ? Optional.ofNullable(aboveRegion.get(new ChunkPos(chunkPos.x, chunkPos.z - 1))).map(s -> s.toSingleLayer(null, maxY, world.getHeight())).orElse(null) : null;
+				LayerSummary.Raw layer = chunkSummaries[chunkX + 1][chunkZ + 1];
 				RegistryPalette<Biome>.ValueView biomePalette = region.getBiomePalette();
 				RegistryPalette<Block>.ValueView blockPalette = region.getBlockPalette();
+				RegistryPalette<Biome>.ValueView aboveBiomes = (chunkZ == 0 ? aboveRegion : region).getBiomePalette();
+				RegistryPalette<Block>.ValueView aboveBlocks = (chunkZ == 0 ? aboveRegion : region).getBlockPalette();
 				if (layer != null && biomePalette != null && blockPalette != null) {
-					int[][] colors = this.getColors(layer, aboveLayer, biomePalette, blockPalette, lightMap);
+					if (chunkSummaries[chunkX + 1][chunkZ] == null) { // Above Layer
+						chunkSummaries[chunkX + 1][chunkZ] = terrain.get(new ChunkPos(chunkPos.x, chunkPos.z - 1)).toSingleLayer(null, maxY, world.getHeight());
+					}
+					int[][] colors = this.getColors(layer, chunkSummaries[chunkX + 1][chunkZ], biomePalette, blockPalette, aboveBiomes, aboveBlocks, lightMap);
 					for (int x = 0; x < colors.length; x++) {
 						for (int z = 0; z < colors[x].length; z++) {
 							int imageX = 16 * chunkX + x;
@@ -129,7 +134,7 @@ public class HoofprintMapStorage {
 		terrainTexture.upload();
 	}
 
-	int[][] getColors(LayerSummary.Raw layer, @Nullable LayerSummary.Raw aboveLayer, RegistryPalette<Biome>.ValueView biomePalette, RegistryPalette<Block>.ValueView blockPalette, ConstantLightMap lightMap) {
+	int[][] getColors(LayerSummary.Raw layer, @Nullable LayerSummary.Raw aboveLayer, RegistryPalette<Biome>.ValueView biomePalette, RegistryPalette<Block>.ValueView blockPalette, RegistryPalette<Biome>.ValueView aboveBiomes, RegistryPalette<Block>.ValueView aboveBlocks, ConstantLightMap lightMap) {
 		int[][] colors = new int[16][16];
 		for (int x = 0; x < 16; x++) {
 			for (int z = 0; z < 16; z++) {
