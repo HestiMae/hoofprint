@@ -11,7 +11,6 @@ import folk.sisby.surveyor.terrain.LayerSummary;
 import folk.sisby.surveyor.terrain.WorldTerrainSummary;
 import garden.hestia.hoofprint.util.ColorUtil;
 import net.minecraft.block.Block;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.item.ItemStack;
@@ -36,7 +35,7 @@ public class HoofprintScreen extends Screen {
 	private Landmark hoveredLandmark = null;
 	private int hoveredWorldX = 0;
 	private int hoveredWorldZ = 0;
-	private int guiScale = MinecraftClient.getInstance().options.getGuiScale().getValue();
+	private double guiScale = 1;
 
 	public HoofprintScreen() {
 		super(Text.of("Hoofprint World Map"));
@@ -112,7 +111,7 @@ public class HoofprintScreen extends Screen {
 			}
 		}
 
-		RegistryKey<World> dim = MinecraftClient.getInstance().world != null ? MinecraftClient.getInstance().world.getRegistryKey() : null;
+		RegistryKey<World> dim = client.world != null ? client.world.getRegistryKey() : null;
 
 		PlayerSummary hoveredPlayer = null;
 		for (PlayerSummary player : SurveyorClient.getFriends().values()) {
@@ -189,10 +188,11 @@ public class HoofprintScreen extends Screen {
 
 	@Override
 	protected void init() {
-		RegistryKey<World> dim = MinecraftClient.getInstance().world.getRegistryKey();
+		RegistryKey<World> dim = client.world.getRegistryKey();
 		this.mapStorage = HoofprintMapStorage.get(dim);
-		this.centreX = MinecraftClient.getInstance().player.getBlockX();
-		this.centreZ = MinecraftClient.getInstance().player.getBlockZ();
+		this.centreX = client.player.getBlockX();
+		this.centreZ = client.player.getBlockZ();
+		this.guiScale = client.getWindow().getScaleFactor();
 		super.init();
 	}
 
@@ -210,8 +210,7 @@ public class HoofprintScreen extends Screen {
 			case GLFW.GLFW_KEY_RIGHT -> centreX++;
 			case GLFW.GLFW_KEY_DELETE -> {
 				if (client == null || client.world == null || client.player == null) return true;
-				if (hoveredLandmark != null && (SurveyorClient.getClientUuid().equals(hoveredLandmark.owner()) || (hoveredLandmark.owner().equals(WorldLandmarks.GLOBAL) && client.player.hasPermissionLevel(2))))
-				{
+				if (hoveredLandmark != null && (SurveyorClient.getClientUuid().equals(hoveredLandmark.owner()) || (hoveredLandmark.owner().equals(WorldLandmarks.GLOBAL) && client.player.hasPermissionLevel(2)))) {
 					WorldTerrainSummary terrain = WorldSummary.of(client.world).terrain();
 					WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
 					if (terrain == null || landmarks == null) return true;
@@ -252,39 +251,44 @@ public class HoofprintScreen extends Screen {
 
 	@Override
 	public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-		centreX -= deltaX;
-		centreZ -= deltaY;
+		centreX -= deltaX / getScaleFactor();
+		centreZ -= deltaY / getScaleFactor();
 		return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
 	}
 
 	double worldXToRenderX(double worldX) {
 		return (getWidth() / 2.0) + worldX - Math.round(centreX);
 	}
+
 	double worldZToRenderY(double worldZ) {
 		return (getHeight() / 2.0) + worldZ - Math.round(centreZ);
 	}
 
-	double screenXToWorldX(double screenX) { return (screenX / getScaleFactor()) + Math.round(centreX) -  getWidth() / 2.0; }
-	double screenYToWorldZ(double screenY) { return (screenY / getScaleFactor()) + Math.round(centreZ) -  getHeight() / 2.0; }
+	double screenXToWorldX(double screenX) {
+		return (screenX / getScaleFactor()) + Math.round(centreX) - getWidth() / 2.0;
+	}
+
+	double screenYToWorldZ(double screenY) {
+		return (screenY / getScaleFactor()) + Math.round(centreZ) - getHeight() / 2.0;
+	}
 
 	double screenXtoRenderX(double screenX) {
 		return screenX / getScaleFactor();
 	}
 
-	double screenYtoRenderY(double screenY)
-	{
+	double screenYtoRenderY(double screenY) {
 		return screenY / getScaleFactor();
 	}
-	float getScaleFactor()
-	{
-		return guiScale / (float) MinecraftClient.getInstance().options.getGuiScale().getValue();
+
+	float getScaleFactor() {
+		return (float) (guiScale / client.getWindow().getScaleFactor());
 	}
-	float getWidth()
-	{
+
+	float getWidth() {
 		return width / getScaleFactor();
 	}
-	float getHeight()
-	{
+
+	float getHeight() {
 		return height / getScaleFactor();
 	}
 }
