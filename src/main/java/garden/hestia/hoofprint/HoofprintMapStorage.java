@@ -1,9 +1,11 @@
 package garden.hestia.hoofprint;
 
 import com.google.common.collect.Multimap;
+import com.mojang.datafixers.util.Function3;
 import folk.sisby.surveyor.WorldSummary;
 import folk.sisby.surveyor.landmark.Landmark;
 import folk.sisby.surveyor.landmark.WorldLandmarks;
+import folk.sisby.surveyor.terrain.ChunkSummary;
 import folk.sisby.surveyor.terrain.LayerSummary;
 import folk.sisby.surveyor.terrain.RegionSummary;
 import folk.sisby.surveyor.terrain.WorldTerrainSummary;
@@ -28,6 +30,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -93,36 +96,54 @@ public class HoofprintMapStorage {
 		if (Hoofprint.CONFIG.logMapBaking) Hoofprint.LOGGER.info("[Hoofprint] Baking {} chunks to the map texture for region {}", changes.cardinality(), rPos);
 		ConstantLightMap lightMap = Hoofprint.CONFIG.dimensionLightMaps.getOrDefault(world.getRegistryKey().getValue().toString(), Hoofprint.CONFIG.lightMap);
 		ChunkPos regionChunkOrigin = new ChunkPos(RegionSummary.regionToChunk(rPos.x), RegionSummary.regionToChunk(rPos.z));
-
 		Integer maxY = Hoofprint.CONFIG.dimensionMaxYValues.getOrDefault(world.getRegistryKey().getValue().toString(), null);
 
-		Identifier textureId = regionTextures.computeIfAbsent(rPos, r -> MinecraftClient.getInstance().getTextureManager().registerDynamicTexture(TEXTURE_PREFIX, new NativeImageBackedTexture(512, 512, true)));
-		NativeImageBackedTexture terrainTexture = (NativeImageBackedTexture) MinecraftClient.getInstance().getTextureManager().getTexture(textureId);
-		NativeImage image = terrainTexture.getImage();
-		if (image == null) throw new IllegalStateException("[Hoofprint] WHO THREW OUT MY %s DYNAMIC TEXTURE".formatted(textureId));
 		LayerSummary.Raw[][] chunkSummaries = new LayerSummary.Raw[34][34];
-		for (int chunkX = 0; chunkX < 32; chunkX++) {
-			for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
-				if (!changes.get(RegionSummary.bitForXZ(chunkX, chunkZ))) continue;
-				ChunkPos chunkPos = new ChunkPos(regionChunkOrigin.x + chunkX, regionChunkOrigin.z + chunkZ);
-				LayerSummary.Raw layer = terrain.get(chunkPos).toSingleLayer(null, maxY, world.getHeight());
-				chunkSummaries[chunkX + 1][chunkZ + 1] = layer;
-				RegistryPalette<Biome>.ValueView biomePalette = region.getBiomePalette();
-				RegistryPalette<Block>.ValueView blockPalette = region.getBlockPalette();
-				if (layer != null && biomePalette != null && blockPalette != null) {
-					if (chunkSummaries[chunkX + 1][chunkZ] == null) { // Above Layer
-						chunkSummaries[chunkX + 1][chunkZ] = terrain.get(new ChunkPos(chunkPos.x, chunkPos.z - 1)).toSingleLayer(null, maxY, world.getHeight());
-					}
-					int[][] colors = this.getColors(layer, chunkSummaries[chunkX + 1][chunkZ], biomePalette, blockPalette, lightMap);
-					for (int x = 0; x < colors.length; x++) {
-						for (int z = 0; z < colors[x].length; z++) {
-							image.setColor(16 * chunkX + x, 16 * chunkZ + z, ColorUtil.argbToABGR(colors[x][z]));
+		LayerSummary.Raw[][] chunkBelowSummaries = new LayerSummary.Raw[34][34];
+
+		for (LayerConfiguration config : List.of(
+			new LayerConfiguration(chunkSummaries, getNativeTexture(rPos, regionTextures), (s, x, z) -> s == null ? null : s.toSingleLayer(null, maxY, world.getHeight())),
+			new LayerConfiguration(chunkBelowSummaries, getNativeTexture(rPos, caveRegionTextures), (s, x, z) -> this.belowLayerUsingCache(chunkSummaries, s, x, z, maxY, world.getHeight()))
+		)) {
+			for (int chunkX = 0; chunkX < 32; chunkX++) {
+				for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
+					if (!changes.get(RegionSummary.bitForXZ(chunkX, chunkZ))) continue;
+					ChunkPos chunkPos = new ChunkPos(regionChunkOrigin.x + chunkX, regionChunkOrigin.z + chunkZ);
+					LayerSummary.Raw layer = config.flattener.apply(terrain.get(chunkPos), chunkX, chunkZ);
+					config.cache[chunkX + 1][chunkZ + 1] = layer;
+					RegistryPalette<Biome>.ValueView biomePalette = region.getBiomePalette();
+					RegistryPalette<Block>.ValueView blockPalette = region.getBlockPalette();
+					if (layer != null && biomePalette != null && blockPalette != null) {
+						if (config.cache[chunkX + 1][chunkZ] == null) { // Above Layer
+							config.cache[chunkX + 1][chunkZ] = config.flattener.apply(terrain.get(new ChunkPos(chunkPos.x, chunkPos.z - 1)), chunkX, chunkZ);
+						}
+						int[][] colors = this.getColors(layer, config.cache[chunkX + 1][chunkZ], biomePalette, blockPalette, lightMap);
+						for (int x = 0; x < colors.length; x++) {
+							for (int z = 0; z < colors[x].length; z++) {
+								config.texture.getImage().setColor(16 * chunkX + x, 16 * chunkZ + z, ColorUtil.argbToABGR(colors[x][z]));
+							}
 						}
 					}
 				}
 			}
+			config.texture.upload();
 		}
-		terrainTexture.upload();
+	}
+
+	LayerSummary.Raw belowLayerUsingCache(LayerSummary.Raw[][] cache, ChunkSummary s, int x, int z, Integer maxY, int worldHeight) {
+		if (s == null) return null;
+		if (cache[x + 1][z + 1] == null) return s.toSingleLayer(null, maxY, worldHeight);
+		return s.toSingleLayerBelow(null, cache[x + 1][z + 1].depths(), worldHeight);
+	}
+
+	record LayerConfiguration(LayerSummary.Raw[][] cache, NativeImageBackedTexture texture, Function3<ChunkSummary, Integer, Integer, LayerSummary.Raw> flattener) {}
+
+	NativeImageBackedTexture getNativeTexture(ChunkPos rPos, Map<ChunkPos, Identifier> regionTextures) {
+		Identifier textureId = regionTextures.computeIfAbsent(rPos, r -> MinecraftClient.getInstance().getTextureManager().registerDynamicTexture(TEXTURE_PREFIX, new NativeImageBackedTexture(512, 512, true)));
+		NativeImageBackedTexture terrainTexture = (NativeImageBackedTexture) MinecraftClient.getInstance().getTextureManager().getTexture(textureId);
+		NativeImage image = terrainTexture.getImage();
+		if (image == null) throw new IllegalStateException("[Hoofprint] WHO THREW OUT MY %s DYNAMIC TEXTURE".formatted(textureId));
+		return terrainTexture;
 	}
 
 	int[][] getColors(LayerSummary.Raw layer, @Nullable LayerSummary.Raw aboveLayer, RegistryPalette<Biome>.ValueView biomePalette, RegistryPalette<Block>.ValueView blockPalette, ConstantLightMap lightMap) {

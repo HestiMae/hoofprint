@@ -42,6 +42,7 @@ public class HoofprintScreen extends Screen {
 	private int hoveredWorldZ = 0;
 	private double guiScale = 1;
 	private boolean inspectMode = false;
+	private boolean caveMode = false;
 
 	public HoofprintScreen() {
 		super(Text.of("Hoofprint World Map"));
@@ -62,7 +63,7 @@ public class HoofprintScreen extends Screen {
 		double borderY1 = worldZToRenderY(worldBorder.getCenterZ() - size / 2.0);
 		double borderY2 = worldZToRenderY(worldBorder.getCenterZ() + size / 2.0);
 
-		for (Map.Entry<ChunkPos, Identifier> entry : mapStorage.regionTextures.entrySet()) {
+		for (Map.Entry<ChunkPos, Identifier> entry : (caveMode ? mapStorage.caveRegionTextures : mapStorage.regionTextures).entrySet()) {
 			int drawWidth = 512;
 			int drawHeight = 512;
 			ChunkPos regionPos = entry.getKey();
@@ -246,6 +247,7 @@ public class HoofprintScreen extends Screen {
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
 		switch (keyCode) {
 			case GLFW.GLFW_KEY_I -> inspectMode = true;
+			case GLFW.GLFW_KEY_PAGE_DOWN, GLFW.GLFW_KEY_PAGE_UP -> caveMode = !caveMode;
 			case GLFW.GLFW_KEY_UP -> centreZ--;
 			case GLFW.GLFW_KEY_DOWN -> centreZ++;
 			case GLFW.GLFW_KEY_LEFT -> centreX--;
