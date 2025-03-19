@@ -1,6 +1,7 @@
 package garden.hestia.hoofprint;
 
 import com.google.common.collect.Multimap;
+import com.mojang.datafixers.util.Function3;
 import folk.sisby.surveyor.WorldSummary;
 import folk.sisby.surveyor.landmark.Landmark;
 import folk.sisby.surveyor.landmark.WorldLandmarks;
@@ -10,7 +11,7 @@ import folk.sisby.surveyor.terrain.RegionSummary;
 import folk.sisby.surveyor.terrain.WorldTerrainSummary;
 import folk.sisby.surveyor.util.RegistryPalette;
 import garden.hestia.hoofprint.util.ColorUtil;
-import garden.hestia.hoofprint.util.LightMapUtil;
+import garden.hestia.hoofprint.util.ConstantLightMap;
 import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
@@ -29,8 +30,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -39,6 +40,7 @@ public class HoofprintMapStorage {
 	public static final String TEXTURE_PREFIX = "hoofprint/map";
 
 	Map<ChunkPos, Identifier> regionTextures = new ConcurrentHashMap<>();
+	Map<ChunkPos, Identifier> caveRegionTextures = new ConcurrentHashMap<>();
 	Map<ChunkPos, BitSet> terrainFilled = new ConcurrentHashMap<>();
 	Map<ChunkPos, BitSet> terrainQueue = new ConcurrentHashMap<>();
 	Map<UUID, Map<Identifier, Landmark>> landmarks = new ConcurrentHashMap<>();
@@ -87,47 +89,64 @@ public class HoofprintMapStorage {
 		WorldTerrainSummary terrain = WorldSummary.of(world).terrain();
 		if (terrain == null) return;
 		RegionSummary region = terrain.getRegion(rPos);
-		LayerSummary.Raw[][] chunkSummaries = new LayerSummary.Raw[32][32];
 		BitSet filledArea = terrainFilled.computeIfAbsent(rPos, s -> new BitSet(RegionSummary.BITSET_SIZE));
 		changes.andNot(filledArea); // Don't live update the existing map.
 		if (changes.isEmpty()) return;
 		filledArea.or(changes);
 		if (Hoofprint.CONFIG.logMapBaking) Hoofprint.LOGGER.info("[Hoofprint] Baking {} chunks to the map texture for region {}", changes.cardinality(), rPos);
-		changes.stream().forEach(i -> {
-			ChunkPos chunkPos = RegionSummary.chunkForBit(rPos, i);
-			ChunkSummary chunkSummary = region.get(chunkPos);
-			if (chunkSummary != null) chunkSummaries[RegionSummary.xForBit(i)][RegionSummary.zForBit(i)] = chunkSummary.toSingleLayer(null, null, world.getHeight());
-		});
-
-		RegionSummary aboveRegion = terrain.getRegion(new ChunkPos(rPos.x, rPos.z - 1));
+		ConstantLightMap lightMap = Hoofprint.CONFIG.dimensionLightMaps.getOrDefault(world.getRegistryKey().getValue().toString(), Hoofprint.CONFIG.lightMap);
 		ChunkPos regionChunkOrigin = new ChunkPos(RegionSummary.regionToChunk(rPos.x), RegionSummary.regionToChunk(rPos.z));
-		Identifier textureId = regionTextures.computeIfAbsent(rPos, r -> MinecraftClient.getInstance().getTextureManager().registerDynamicTexture(TEXTURE_PREFIX, new NativeImageBackedTexture(512, 512, true)));
-		NativeImageBackedTexture terrainTexture = (NativeImageBackedTexture) MinecraftClient.getInstance().getTextureManager().getTexture(textureId);
-		NativeImage image = terrainTexture.getImage();
-		if (image == null) throw new IllegalStateException("[Hoofprint] WHO THREW OUT MY %s DYNAMIC TEXTURE".formatted(textureId));
-		for (int chunkX = 0; chunkX < 32; chunkX++) {
-			for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
-				ChunkPos chunkPos = new ChunkPos(regionChunkOrigin.x + chunkX, regionChunkOrigin.z + chunkZ);
-				LayerSummary.Raw layer = chunkSummaries[chunkX][chunkZ];
-				LayerSummary.Raw aboveLayer = chunkZ > 0 ? chunkSummaries[chunkX][chunkZ - 1] : aboveRegion != null ? Optional.ofNullable(aboveRegion.get(new ChunkPos(chunkPos.x, chunkPos.z - 1))).map(s -> s.toSingleLayer(null, null, world.getHeight())).orElse(null) : null;
-				RegistryPalette<Biome>.ValueView biomePalette = region.getBiomePalette();
-				RegistryPalette<Block>.ValueView blockPalette = region.getBlockPalette();
-				if (layer != null && biomePalette != null && blockPalette != null) {
-					int[][] colors = this.getColors(layer, aboveLayer, biomePalette, blockPalette);
-					for (int x = 0; x < colors.length; x++) {
-						for (int z = 0; z < colors[x].length; z++) {
-							int imageX = 16 * chunkX + x;
-							int imageY = 16 * chunkZ + z;
-							image.setColor(imageX, imageY, ColorUtil.argbToABGR(colors[x][z]));
+		Integer maxY = Hoofprint.CONFIG.dimensionMaxYValues.getOrDefault(world.getRegistryKey().getValue().toString(), null);
+
+		LayerSummary.Raw[][] chunkSummaries = new LayerSummary.Raw[34][34];
+		LayerSummary.Raw[][] chunkBelowSummaries = new LayerSummary.Raw[34][34];
+
+		for (LayerConfiguration config : List.of(
+			new LayerConfiguration(chunkSummaries, getNativeTexture(rPos, regionTextures), (s, x, z) -> s == null ? null : s.toSingleLayer(null, maxY, world.getHeight())),
+			new LayerConfiguration(chunkBelowSummaries, getNativeTexture(rPos, caveRegionTextures), (s, x, z) -> this.belowLayerUsingCache(chunkSummaries, s, x, z, maxY, world.getHeight()))
+		)) {
+			for (int chunkX = 0; chunkX < 32; chunkX++) {
+				for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
+					if (!changes.get(RegionSummary.bitForXZ(chunkX, chunkZ))) continue;
+					ChunkPos chunkPos = new ChunkPos(regionChunkOrigin.x + chunkX, regionChunkOrigin.z + chunkZ);
+					LayerSummary.Raw layer = config.flattener.apply(terrain.get(chunkPos), chunkX, chunkZ);
+					config.cache[chunkX + 1][chunkZ + 1] = layer;
+					RegistryPalette<Biome>.ValueView biomePalette = region.getBiomePalette();
+					RegistryPalette<Block>.ValueView blockPalette = region.getBlockPalette();
+					if (layer != null && biomePalette != null && blockPalette != null) {
+						if (config.cache[chunkX + 1][chunkZ] == null) { // Above Layer
+							config.cache[chunkX + 1][chunkZ] = config.flattener.apply(terrain.get(new ChunkPos(chunkPos.x, chunkPos.z - 1)), chunkX, chunkZ);
+						}
+						int[][] colors = this.getColors(layer, config.cache[chunkX + 1][chunkZ], biomePalette, blockPalette, lightMap);
+						for (int x = 0; x < colors.length; x++) {
+							for (int z = 0; z < colors[x].length; z++) {
+								config.texture.getImage().setColor(16 * chunkX + x, 16 * chunkZ + z, ColorUtil.argbToABGR(colors[x][z]));
+							}
 						}
 					}
 				}
 			}
+			config.texture.upload();
 		}
-		terrainTexture.upload();
 	}
 
-	int[][] getColors(LayerSummary.Raw layer, @Nullable LayerSummary.Raw aboveLayer, RegistryPalette<Biome>.ValueView biomePalette, RegistryPalette<Block>.ValueView blockPalette) {
+	LayerSummary.Raw belowLayerUsingCache(LayerSummary.Raw[][] cache, ChunkSummary s, int x, int z, Integer maxY, int worldHeight) {
+		if (s == null) return null;
+		if (cache[x + 1][z + 1] == null) return s.toSingleLayer(null, maxY, worldHeight);
+		return s.toSingleLayerBelow(null, cache[x + 1][z + 1].depths(), worldHeight);
+	}
+
+	record LayerConfiguration(LayerSummary.Raw[][] cache, NativeImageBackedTexture texture, Function3<ChunkSummary, Integer, Integer, LayerSummary.Raw> flattener) {}
+
+	NativeImageBackedTexture getNativeTexture(ChunkPos rPos, Map<ChunkPos, Identifier> regionTextures) {
+		Identifier textureId = regionTextures.computeIfAbsent(rPos, r -> MinecraftClient.getInstance().getTextureManager().registerDynamicTexture(TEXTURE_PREFIX, new NativeImageBackedTexture(512, 512, true)));
+		NativeImageBackedTexture terrainTexture = (NativeImageBackedTexture) MinecraftClient.getInstance().getTextureManager().getTexture(textureId);
+		NativeImage image = terrainTexture.getImage();
+		if (image == null) throw new IllegalStateException("[Hoofprint] WHO THREW OUT MY %s DYNAMIC TEXTURE".formatted(textureId));
+		return terrainTexture;
+	}
+
+	int[][] getColors(LayerSummary.Raw layer, @Nullable LayerSummary.Raw aboveLayer, RegistryPalette<Biome>.ValueView biomePalette, RegistryPalette<Block>.ValueView blockPalette, ConstantLightMap lightMap) {
 		int[][] colors = new int[16][16];
 		for (int x = 0; x < 16; x++) {
 			for (int z = 0; z < 16; z++) {
@@ -157,14 +176,14 @@ public class HoofprintMapStorage {
 				if (Hoofprint.CONFIG.lighting && (Hoofprint.CONFIG.transparentWater || layer.waterDepths()[i] == 0)) {
 					int blockLight = layer.lightLevels()[i];
 					int skyLight = Math.max(ColorUtil.SKY_LIGHT - layer.waterDepths()[i], 0);
-					color = ColorUtil.tint(color, LightMapUtil.DAY[skyLight][blockLight]);
+					color = ColorUtil.tint(color, lightMap.getMap()[skyLight][blockLight]);
 				}
 				if (Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0) {
 					waterColor = ColorUtil.getWaterColor(biomePalette.get(layer.biomes()[i]));
 					if (Hoofprint.CONFIG.lighting) {
 						int blockLight = layer.waterLights()[i];
 						int skyLight = ColorUtil.SKY_LIGHT;
-						waterColor = ColorUtil.tint(waterColor, LightMapUtil.DAY[skyLight][blockLight]);
+						waterColor = ColorUtil.tint(waterColor, lightMap.getMap()[skyLight][blockLight]);
 					}
 					color = ColorUtil.blend(color, waterColor, 0.6F);
 				}
