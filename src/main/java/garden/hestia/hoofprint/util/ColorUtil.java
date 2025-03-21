@@ -3,7 +3,6 @@ package garden.hestia.hoofprint.util;
 import garden.hestia.hoofprint.Hoofprint;
 import net.minecraft.block.Block;
 import net.minecraft.util.math.ColorHelper;
-import net.minecraft.util.math.ColorHelper;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.FoliageColors;
 

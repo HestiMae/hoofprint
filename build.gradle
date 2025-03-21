@@ -67,6 +67,14 @@ jar {
 	}
 }
 
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			from components.java
+		}
+	}
+}
+
 githubRelease {
 	token = "$System.env.GITHUB_TOKEN"
 	owner = project.user

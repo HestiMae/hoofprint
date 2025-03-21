@@ -16,9 +16,7 @@ import net.minecraft.block.MapColor;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
@@ -189,11 +187,9 @@ public class HoofprintScreen extends Screen {
 		} else if (inspectMode) {
 			List<Text> tooltipLines = new ArrayList<>();
 
-			if (!ifTerrainUnderCursor(((block, biome, y, lightLevel, waterDepth, waterLight) -> {
+			if (!ifTerrainUnderCursor(((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
 				tooltipLines.add(Text.of("x: %d, y: %d, z: %d".formatted(hoveredWorldX, y, hoveredWorldZ)));
 				tooltipLines.add(block.getName());
-				Registry<Biome> biomeRegistry = client.world.getRegistryManager().get(RegistryKeys.BIOME);
-				Identifier biomeId = biomeRegistry.getId(biome);
 				if (biomeId != null) tooltipLines.add(Text.translatable("biome.%s.%s".formatted(biomeId.getNamespace(), biomeId.getPath())));
 				if (waterDepth > 0) tooltipLines.add(Text.of("Water: %d blocks".formatted(waterDepth)));
 				if (lightLevel > 0) tooltipLines.add(Text.of("Block Light: %d".formatted(lightLevel)));
@@ -207,7 +203,7 @@ public class HoofprintScreen extends Screen {
 	}
 
 	interface FloorConsumer {
-		void accept(Block block, Biome biome, int y, int lightLevel, int waterDepth, int waterLight);
+		void accept(Block block, Biome biome, Identifier biomeId, int y, int lightLevel, int waterDepth, int waterLight);
 	}
 
 	private boolean ifTerrainUnderCursor(FloorConsumer consumer) {
@@ -223,8 +219,9 @@ public class HoofprintScreen extends Screen {
 		int blockIndex = (hoveredWorldX - cp.getStartX()) * 16 + (hoveredWorldZ - cp.getStartZ());
 		Block block = terrain.getBlockPalette(cp).get(layer.blocks()[blockIndex]);
 		Biome biome = terrain.getBiomePalette(cp).get(layer.biomes()[blockIndex]);
+		Identifier biomeId = terrain.getBiomePalette(cp).registry().getId(biome);
 		if (block == null || biome == null) return false;
-		consumer.accept(block, biome, client.world.getHeight() - layer.depths()[blockIndex], layer.lightLevels()[blockIndex], layer.waterDepths()[blockIndex], layer.waterLights()[blockIndex]);
+		consumer.accept(block, biome, biomeId, client.world.getHeight() - layer.depths()[blockIndex], layer.lightLevels()[blockIndex], layer.waterDepths()[blockIndex], layer.waterLights()[blockIndex]);
 		return true;
 	}
 
@@ -261,7 +258,7 @@ public class HoofprintScreen extends Screen {
 					landmarks.remove(client.world, hoveredLandmark.owner(), hoveredLandmark.id());
 				}
 			}
-			case GLFW.GLFW_KEY_INSERT -> ifTerrainUnderCursor(((block, biome, y, lightLevel, waterDepth, waterLight) -> {
+			case GLFW.GLFW_KEY_INSERT -> ifTerrainUnderCursor(((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
 				WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
 				if (landmarks == null) return;
 				landmarks.put(client.world, Landmark.createIncremental(landmarks, SurveyorClient.getClientUuid(), Identifier.of("hoofprint", "block"), builder -> {
