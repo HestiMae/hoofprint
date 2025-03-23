@@ -41,6 +41,7 @@ public class HoofprintScreen extends Screen {
 	private double guiScale = 1;
 	private boolean inspectMode = false;
 	private boolean caveMode = false;
+	private boolean hideDecorations = false;
 
 	public HoofprintScreen() {
 		super(Text.of("Hoofprint World Map"));
@@ -51,8 +52,6 @@ public class HoofprintScreen extends Screen {
 		context.getMatrices().push();
 		float scaleFactor = getScaleFactor();
 		context.getMatrices().scale(scaleFactor, scaleFactor, 1.0f);
-		int scaledMouseX = (int) screenXtoRenderX(mouseX);
-		int scaledMouseY = (int) screenYtoRenderY(mouseY);
 
 		WorldBorder worldBorder = client.world.getWorldBorder();
 		double size = worldBorder.getSize();
@@ -84,7 +83,7 @@ public class HoofprintScreen extends Screen {
 			}
 			context.drawTexture(texture, drawX, drawY, drawWidth, drawHeight, drawX - x, drawY - y, drawWidth, drawHeight, 512, 512);
 		}
-		if (Hoofprint.CONFIG.renderBorder) {
+		if (Hoofprint.CONFIG.renderBorder && !hideDecorations) {
 			int color = worldBorder.getStage().getColor() | 0xff000000;
 
 			int clampedx1 = (int) Math.max(borderX1, -1);
@@ -95,18 +94,18 @@ public class HoofprintScreen extends Screen {
 			context.drawBorder(clampedx1, clampedy1, clampedx2 - clampedx1, clampedy2 - clampedy1, color);
 		}
 
+		context.getMatrices().pop();
+
 		hoveredLandmark = null;
 		double bestDistance = Double.MAX_VALUE;
 		for (Map<Identifier, Landmark> map : this.mapStorage.landmarks.values()) {
-			for (Map.Entry<Identifier, Landmark> entry : map.entrySet()) {
-				Identifier id = entry.getKey();
-				Landmark landmark = entry.getValue();
-				if (!landmark.contains(LandmarkComponentTypes.POS)) continue;
+			for (Landmark landmark : map.values()) {
 				BlockPos pos = landmark.get(LandmarkComponentTypes.POS);
-				int landmarkCenterX = (int) worldXToRenderX(pos.getX());
-				int landmarkCenterY = (int) worldZToRenderY(pos.getZ());
-				double mouseDistance = (scaledMouseX - landmarkCenterX) * (scaledMouseX - landmarkCenterX) + (scaledMouseY - landmarkCenterY) * (scaledMouseY - landmarkCenterY);
-				if (!hasShiftDown() && mouseDistance < 25 && mouseDistance < bestDistance) {
+				if (pos == null || hideDecorations) continue;
+				int landmarkCenterX = (int) renderToScreen(worldXToRenderX(pos.getX()));
+				int landmarkCenterY = (int) renderToScreen(worldZToRenderY(pos.getZ()));
+				double mouseDistance = (mouseX - landmarkCenterX) * (mouseX - landmarkCenterX) + (mouseY - landmarkCenterY) * (mouseY - landmarkCenterY);
+				if (!hasShiftDown() && mouseDistance < (6 * 6 * client.getWindow().getScaleFactor()) && mouseDistance < bestDistance) {
 					hoveredLandmark = landmark;
 					bestDistance = mouseDistance;
 				}
@@ -117,11 +116,11 @@ public class HoofprintScreen extends Screen {
 
 		PlayerSummary hoveredPlayer = null;
 		for (PlayerSummary player : SurveyorClient.getFriends().values()) {
-			if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline)) continue;
-			int playerCenterX = (int) worldXToRenderX(player.pos().getX());
-			int playerCenterY = (int) worldZToRenderY(player.pos().getZ());
-			double mouseDistance = (scaledMouseX - playerCenterX) * (scaledMouseX - playerCenterX) + (scaledMouseY - playerCenterY) * (scaledMouseY - playerCenterY);
-			if (mouseDistance < 16 && mouseDistance < bestDistance) {
+			if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline) || hideDecorations) continue;
+			int playerCenterX = (int) renderToScreen(worldXToRenderX(player.pos().getX()));
+			int playerCenterY = (int) renderToScreen(worldZToRenderY(player.pos().getZ()));
+			double mouseDistance = (mouseX - playerCenterX) * (mouseX - playerCenterX) + (mouseY - playerCenterY) * (mouseY - playerCenterY);
+			if (mouseDistance < (4 * 4 * client.getWindow().getScaleFactor()) && mouseDistance < bestDistance) {
 				hoveredLandmark = null;
 				hoveredPlayer = player;
 				bestDistance = mouseDistance;
@@ -131,9 +130,9 @@ public class HoofprintScreen extends Screen {
 		for (Map.Entry<UUID, PlayerSummary> e : SurveyorClient.getFriends().entrySet()) {
 			UUID uuid = e.getKey();
 			PlayerSummary player = e.getValue();
-			if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline)) continue;
-			int playerScreenX = (int) worldXToRenderX(player.pos().getX());
-			int playerScreenY = (int) worldZToRenderY(player.pos().getZ());
+			if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline) || hideDecorations) continue;
+			int playerScreenX = (int) renderToScreen(worldXToRenderX(player.pos().getX()));
+			int playerScreenY = (int) renderToScreen(worldZToRenderY(player.pos().getZ()));
 			boolean mouseOver = player == hoveredPlayer;
 			context.getMatrices().push();
 			context.getMatrices().translate(playerScreenX, playerScreenY, 0);
@@ -148,13 +147,11 @@ public class HoofprintScreen extends Screen {
 		}
 
 		for (Map<Identifier, Landmark> map : this.mapStorage.landmarks.values()) {
-			for (Map.Entry<Identifier, Landmark> entry : map.entrySet()) {
-				Identifier id = entry.getKey();
-				Landmark landmark = entry.getValue();
-				if (!landmark.contains(LandmarkComponentTypes.POS)) continue;
+			for (Landmark landmark : map.values()) {
 				BlockPos pos = landmark.get(LandmarkComponentTypes.POS);
-				int landmarkScreenX = (int) worldXToRenderX(pos.getX());
-				int landmarkScreenY = (int) worldZToRenderY(pos.getZ());
+				if (pos == null || hideDecorations) continue;
+				int landmarkScreenX = (int) renderToScreen(worldXToRenderX(pos.getX()));
+				int landmarkScreenY = (int) renderToScreen(worldZToRenderY(pos.getZ()));
 				float[] landmarkColors = (landmark.contains(LandmarkComponentTypes.COLOR) && !landmark.contains(LandmarkComponentTypes.STACK)) ? ColorUtil.getColorFromArgb(landmark.get(LandmarkComponentTypes.COLOR)) : new float[]{1.0f, 1.0f, 1.0f};
 				boolean mouseOver = landmark == hoveredLandmark;
 				float tint = mouseOver ? 0.7F : 1.0F;
@@ -173,7 +170,6 @@ public class HoofprintScreen extends Screen {
 				}
 			}
 		}
-		context.getMatrices().pop();
 
 
 		if (hoveredPlayer != null && hoveredPlayer.username() != null) {
@@ -248,6 +244,7 @@ public class HoofprintScreen extends Screen {
 		}
 		switch (keyCode) {
 			case GLFW.GLFW_KEY_I -> inspectMode = true;
+			case GLFW.GLFW_KEY_H -> hideDecorations = !hideDecorations;
 			case GLFW.GLFW_KEY_PAGE_DOWN, GLFW.GLFW_KEY_PAGE_UP -> caveMode = !caveMode;
 			case GLFW.GLFW_KEY_UP -> centreZ--;
 			case GLFW.GLFW_KEY_DOWN -> centreZ++;
@@ -328,12 +325,12 @@ public class HoofprintScreen extends Screen {
 		return (screenY / getScaleFactor()) + Math.round(centreZ) - getHeight() / 2.0;
 	}
 
-	double screenXtoRenderX(double screenX) {
-		return screenX / getScaleFactor();
+	double screenToRender(double screenPixels) {
+		return screenPixels / getScaleFactor();
 	}
 
-	double screenYtoRenderY(double screenY) {
-		return screenY / getScaleFactor();
+	double renderToScreen(double screenPixels) {
+		return screenPixels * getScaleFactor();
 	}
 
 	float getScaleFactor() {
