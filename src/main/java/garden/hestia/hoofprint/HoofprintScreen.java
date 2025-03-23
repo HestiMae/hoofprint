@@ -173,19 +173,20 @@ public class HoofprintScreen extends Screen {
 				}
 			}
 		}
+		context.getMatrices().pop();
+
 
 		if (hoveredPlayer != null && hoveredPlayer.username() != null) {
-			context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), scaledMouseX, scaledMouseY);
+			context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), mouseX, mouseY);
 		} else if (hoveredLandmark != null) {
 			List<Text> tooltipLines = new ArrayList<>();
 			if (hoveredLandmark.contains(LandmarkComponentTypes.NAME)) tooltipLines.add(hoveredLandmark.get(LandmarkComponentTypes.NAME));
 			if (hoveredLandmark.contains(LandmarkComponentTypes.LORE)) tooltipLines.addAll(hoveredLandmark.get(LandmarkComponentTypes.LORE).stream().map(t -> t.copy().formatted(Formatting.GRAY)).toList());
 			if (!tooltipLines.isEmpty()) {
-				context.drawTooltip(this.textRenderer, tooltipLines, scaledMouseX, scaledMouseY);
+				context.drawTooltip(this.textRenderer, tooltipLines, mouseX, mouseY);
 			}
 		} else if (inspectMode) {
 			List<Text> tooltipLines = new ArrayList<>();
-
 			if (!ifTerrainUnderCursor(((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
 				tooltipLines.add(Text.of("x: %d, y: %d, z: %d".formatted(hoveredWorldX, y, hoveredWorldZ)));
 				tooltipLines.add(block.getName());
@@ -195,10 +196,9 @@ public class HoofprintScreen extends Screen {
 			}))) {
 				tooltipLines.add(Text.of("x: %d, z: %d".formatted(hoveredWorldX, hoveredWorldZ)));
 			}
-			context.drawTooltip(this.textRenderer, tooltipLines, scaledMouseX, scaledMouseY);
+			context.drawTooltip(this.textRenderer, tooltipLines, mouseX, mouseY);
 		}
 
-		context.getMatrices().pop();
 		super.render(context, mouseX, mouseY, delta);
 	}
 
@@ -242,6 +242,10 @@ public class HoofprintScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+		if (Hoofprint.OPEN_MAP.matchesKey(keyCode, scanCode)) {
+			close();
+			return true;
+		}
 		switch (keyCode) {
 			case GLFW.GLFW_KEY_I -> inspectMode = true;
 			case GLFW.GLFW_KEY_PAGE_DOWN, GLFW.GLFW_KEY_PAGE_UP -> caveMode = !caveMode;
