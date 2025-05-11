@@ -36,6 +36,8 @@ public class HoofprintScreen extends Screen {
 	private double centreX = 0;
 	private double centreZ = 0;
 	private Landmark hoveredLandmark = null;
+	private double hoveredScreenX = 0;
+	private double hoveredScreenY = 0;
 	private int hoveredWorldX = 0;
 	private int hoveredWorldZ = 0;
 	private double guiScale = 1;
@@ -103,7 +105,7 @@ public class HoofprintScreen extends Screen {
 				if (pos == null || hideDecorations) continue;
 				double landmarkCenterX = renderToScreen(worldXToRenderX(pos.getX()));
 				double landmarkCenterY = renderToScreen(worldZToRenderY(pos.getZ()));
-				double mouseDistance = (mouseX - landmarkCenterX) * (mouseX - landmarkCenterX) + (mouseY - landmarkCenterY) * (mouseY - landmarkCenterY);
+				double mouseDistance = (hoveredScreenX - landmarkCenterX) * (hoveredScreenX - landmarkCenterX) + (hoveredScreenY - landmarkCenterY) * (hoveredScreenY - landmarkCenterY);
 				if (!hasShiftDown() && mouseDistance < (6 * 6 * client.getWindow().getScaleFactor()) && mouseDistance < bestDistance) {
 					hoveredLandmark = landmark;
 					bestDistance = mouseDistance;
@@ -118,7 +120,7 @@ public class HoofprintScreen extends Screen {
 			if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline) || hideDecorations) continue;
 			double playerCenterX = renderToScreen(worldXToRenderX(player.pos().getX()));
 			double playerCenterY = renderToScreen(worldZToRenderY(player.pos().getZ()));
-			double mouseDistance = (mouseX - playerCenterX) * (mouseX - playerCenterX) + (mouseY - playerCenterY) * (mouseY - playerCenterY);
+			double mouseDistance = (hoveredScreenX - playerCenterX) * (hoveredScreenX - playerCenterX) + (hoveredScreenY - playerCenterY) * (hoveredScreenY - playerCenterY);
 			if (mouseDistance < (4 * 4 * client.getWindow().getScaleFactor()) && mouseDistance < bestDistance) {
 				hoveredLandmark = null;
 				hoveredPlayer = player;
@@ -173,15 +175,16 @@ public class HoofprintScreen extends Screen {
 			}
 		}
 
-
+		context.getMatrices().push();
+		context.getMatrices().translate(hoveredScreenX, hoveredScreenY, 0);
 		if (hoveredPlayer != null && hoveredPlayer.username() != null) {
-			context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), mouseX, mouseY);
+			context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), 0, 0);
 		} else if (hoveredLandmark != null) {
 			List<Text> tooltipLines = new ArrayList<>();
 			if (hoveredLandmark.contains(LandmarkComponentTypes.NAME)) tooltipLines.add(hoveredLandmark.get(LandmarkComponentTypes.NAME));
 			if (hoveredLandmark.contains(LandmarkComponentTypes.LORE)) tooltipLines.addAll(hoveredLandmark.get(LandmarkComponentTypes.LORE).stream().map(t -> t.copy().formatted(Formatting.GRAY)).toList());
 			if (!tooltipLines.isEmpty()) {
-				context.drawTooltip(this.textRenderer, tooltipLines, mouseX, mouseY);
+				context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
 			}
 		} else if (inspectMode) {
 			List<Text> tooltipLines = new ArrayList<>();
@@ -194,8 +197,9 @@ public class HoofprintScreen extends Screen {
 			}))) {
 				tooltipLines.add(Text.of("x: %d, z: %d".formatted(hoveredWorldX, hoveredWorldZ)));
 			}
-			context.drawTooltip(this.textRenderer, tooltipLines, mouseX, mouseY);
+			context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
 		}
+		context.getMatrices().pop();
 
 		super.render(context, mouseX, mouseY, delta);
 	}
@@ -293,6 +297,8 @@ public class HoofprintScreen extends Screen {
 
 	@Override
 	public void mouseMoved(double mouseX, double mouseY) {
+		hoveredScreenX = mouseX;
+		hoveredScreenY = mouseY;
 		hoveredWorldX = (int) Math.floor(screenXToWorldX(mouseX) + (screenXToWorldX(mouseX) < 0 ? 0.5 : -0.5)); // Dunno
 		hoveredWorldZ = (int) Math.floor(screenYToWorldZ(mouseY));
 		super.mouseMoved(mouseX, mouseY);
