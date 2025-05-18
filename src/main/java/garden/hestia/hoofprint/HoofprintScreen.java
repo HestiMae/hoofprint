@@ -40,7 +40,7 @@ public class HoofprintScreen extends Screen {
 	private double hoveredScreenY = 0;
 	private int hoveredWorldX = 0;
 	private int hoveredWorldZ = 0;
-	private double guiScale = 1;
+	private int guiScale = 1;
 	private boolean inspectMode = false;
 	private boolean caveMode = false;
 	private boolean hideDecorations = false;
@@ -248,7 +248,7 @@ public class HoofprintScreen extends Screen {
 		this.mapStorage = HoofprintMapStorage.get(dim);
 		this.centreX = client.player.getBlockX();
 		this.centreZ = client.player.getBlockZ();
-		this.guiScale = client.getWindow().getScaleFactor();
+		this.guiScale = (int) client.getWindow().getScaleFactor();
 		super.init();
 	}
 
@@ -321,8 +321,20 @@ public class HoofprintScreen extends Screen {
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
-		guiScale = (int) MathHelper.clamp(guiScale + amount, 1, 10);
-		return true;
+		if (amount >= 1 && guiScale < 10) {
+			centreX += (screenXToWorldX(mouseX) - centreX) / (guiScale + 1);
+			centreZ += (screenYToWorldZ(mouseY) - centreZ) / (guiScale + 1);
+			guiScale++;
+			return true;
+		}
+		if (amount <= -1 && guiScale > 1) {
+			guiScale--;
+			centreX -= (screenXToWorldX(mouseX) - centreX) / (guiScale + 1);
+			centreZ -= (screenYToWorldZ(mouseY) - centreZ) / (guiScale + 1);
+			return true;
+		}
+
+		return false;
 	}
 
 	@Override
