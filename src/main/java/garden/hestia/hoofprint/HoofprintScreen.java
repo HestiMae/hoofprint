@@ -156,9 +156,24 @@ public class HoofprintScreen extends Screen {
 				float[] landmarkColors = (landmark.contains(LandmarkComponentTypes.COLOR) && !landmark.contains(LandmarkComponentTypes.STACK)) ? ColorUtil.getColorFromArgb(landmark.get(LandmarkComponentTypes.COLOR)) : new float[]{1.0f, 1.0f, 1.0f};
 				boolean mouseOver = landmark == hoveredLandmark;
 				float tint = mouseOver ? 0.7F : 1.0F;
-				RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
 				context.getMatrices().push();
 				context.getMatrices().translate(landmarkScreenX, landmarkScreenY, 0);
+				if (Hoofprint.CONFIG.itemOutlines && landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
+					RenderSystem.setShaderColor(0, 0, 0, 1);
+					ItemStack stack = landmark.get(LandmarkComponentTypes.STACK);
+					context.getMatrices().push();
+					context.getMatrices().translate(0, 0, -5);
+					context.drawItem(stack, -9, -9);
+					context.drawItem(stack, -9, -8);
+					context.drawItem(stack, -9, -7);
+					context.drawItem(stack, -8, -9);
+					context.drawItem(stack, -8, -7);
+					context.drawItem(stack, -7, -9);
+					context.drawItem(stack, -7, -8);
+					context.drawItem(stack, -7, -7);
+					context.getMatrices().pop();
+				}
+				RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
 				if (landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
 					ItemStack stack = landmark.get(LandmarkComponentTypes.STACK);
 					context.drawItem(stack, -8, -8);
