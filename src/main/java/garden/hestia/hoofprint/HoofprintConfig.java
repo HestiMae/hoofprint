@@ -11,6 +11,7 @@ public class HoofprintConfig extends WrappedConfig {
 	public boolean topography = true;
 	public boolean transparentWater = true;
 	public boolean lighting = true;
+	public boolean itemOutlines = true;
 	public boolean showOffline = true;
 	public boolean renderBorder = true;
 	public boolean renderOutsideBorder = true;
