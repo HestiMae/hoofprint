@@ -27,11 +27,11 @@ public class ColorUtil {
 		BlockConstants.ICE_BLOCKS::contains,
 		(block, biome) -> ColorConstants.ICE_MAP_COLOR,
 		BlockConstants.SPRUCE_BLOCKS::contains,
-		(block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.getSpruceColor()),
+		(block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.SPRUCE),
 		BlockConstants.BIRCH_BLOCKS::contains,
-		(block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.getBirchColor()),
+		(block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.BIRCH),
 		BlockConstants.MANGROVE_BLOCKS::contains,
-		(block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.getMangroveColor())
+		(block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.MANGROVE)
 	);
 
 	public static int tint(int base, int tint) {
@@ -119,7 +119,7 @@ public class ColorUtil {
 	}
 
 	public static float[] getColorFromArgb(int color) {
-		return new float[]{ColorHelper.Argb.getRed(color) / 255f, ColorHelper.Argb.getGreen(color) / 255f, ColorHelper.Argb.getBlue(color) / 255f};
+		return new float[]{ColorHelper.getRed(color) / 255f, ColorHelper.getGreen(color) / 255f, ColorHelper.getBlue(color) / 255f};
 	}
 
 	public enum Brightness {

@@ -13,6 +13,7 @@ import folk.sisby.surveyor.terrain.WorldTerrainSummary;
 import garden.hestia.hoofprint.util.ColorUtil;
 import net.minecraft.block.Block;
 import net.minecraft.block.MapColor;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.item.ItemStack;
@@ -52,9 +53,9 @@ public class HoofprintScreen extends Screen {
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
 		super.render(context, mouseX, mouseY, delta);
-		context.getMatrices().push();
+		context.getMatrices().pushMatrix();
 		float scaleFactor = getScaleFactor();
-		context.getMatrices().scale(scaleFactor, scaleFactor, 1.0f);
+		context.getMatrices().scale(scaleFactor, scaleFactor);
 
 		WorldBorder worldBorder = client.world.getWorldBorder();
 		double size = worldBorder.getSize();
@@ -77,10 +78,10 @@ public class HoofprintScreen extends Screen {
 			int drawWidth = Math.min(512, renderX2 - regionX1) - u;
 			int drawHeight = Math.min(512, renderZ2 - regionZ1) - v;
 			if (drawHeight <= 0 || drawWidth <= 0) continue;
-			context.getMatrices().push();
-			context.getMatrices().translate(worldXToRenderX(regionX1 + u), worldZToRenderY(regionZ1 + v), 0);
-			context.drawTexture(texture, 0, 0, drawWidth, drawHeight, u, v, drawWidth, drawHeight, 512, 512);
-			context.getMatrices().pop();
+			context.getMatrices().pushMatrix();
+			context.getMatrices().translate((float) worldXToRenderX(regionX1 + u), (float) worldZToRenderY(regionZ1 + v));
+			context.drawTexture(RenderPipelines.GUI, texture, 0, 0, drawWidth, drawHeight, u, v, drawWidth, drawHeight, 512, 512);
+			context.getMatrices().popMatrix();
 		}
 		if (Hoofprint.CONFIG.renderBorder && !hideDecorations) {
 			int color = worldBorder.getStage().getColor() | 0xff000000;
@@ -90,13 +91,13 @@ public class HoofprintScreen extends Screen {
 			double clampedy1 = Math.max(worldZToRenderY(borderZ1), -1);
 			double clampedy2 = Math.min(worldZToRenderY(borderZ2), Math.ceil(getHeight() + 1));
 
-			context.getMatrices().push();
-			context.getMatrices().translate(clampedx1, clampedy1, 0);
+			context.getMatrices().pushMatrix();
+			context.getMatrices().translate((float) clampedx1, (float) clampedy1);
 			context.drawBorder(0, 0, (int) (clampedx2 - clampedx1), (int) (clampedy2 - clampedy1), color);
-			context.getMatrices().pop();
+			context.getMatrices().popMatrix();
 		}
 
-		context.getMatrices().pop();
+		context.getMatrices().popMatrix();
 
 		hoveredLandmark = null;
 		double bestDistance = Double.MAX_VALUE;
@@ -136,16 +137,16 @@ public class HoofprintScreen extends Screen {
 			double playerScreenX = renderToScreen(worldXToRenderX(player.pos().getX()));
 			double playerScreenY = renderToScreen(worldZToRenderY(player.pos().getZ()));
 			boolean mouseOver = player == hoveredPlayer;
-			context.getMatrices().push();
-			context.getMatrices().translate(playerScreenX, playerScreenY, 0);
-			context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + player.yaw()));
-			context.getMatrices().translate(-2.5, -3.5, 0);
+			context.getMatrices().pushMatrix();
+			context.getMatrices().translate((float) playerScreenX, (float) playerScreenY);
+			// FIXME: context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + player.yaw()));
+			context.getMatrices().translate(-2.5F, -3.5F);
 			boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
 			float tint = !player.online() ? 0.3f : mouseOver ? 0.8f : 1f;
-			RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), tint, tint * (friend ? 0.3f : 1.0f), 1.0F);
-			context.drawTexture(Identifier.tryParse("textures/map/decorations/player.png"), 0, 0, 5, 7, 2, 0, 5, 7, 8, 8);
-			RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-			context.getMatrices().pop();
+			// FIXME: RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), tint, tint * (friend ? 0.3f : 1.0f), 1.0F);
+			context.drawTexture(RenderPipelines.GUI, Identifier.tryParse("textures/map/decorations/player.png"), 0, 0, 5, 7, 2, 0, 5, 7, 8, 8);
+			// FIXME: RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+			context.getMatrices().popMatrix();
 		}
 
 		for (Map<Identifier, Landmark> map : this.mapStorage.landmarks.values()) {
@@ -157,13 +158,12 @@ public class HoofprintScreen extends Screen {
 				float[] landmarkColors = (landmark.contains(LandmarkComponentTypes.COLOR) && !landmark.contains(LandmarkComponentTypes.STACK)) ? ColorUtil.getColorFromArgb(landmark.get(LandmarkComponentTypes.COLOR)) : new float[]{1.0f, 1.0f, 1.0f};
 				boolean mouseOver = landmark == hoveredLandmark;
 				float tint = mouseOver ? 0.7F : 1.0F;
-				context.getMatrices().push();
-				context.getMatrices().translate(landmarkScreenX, landmarkScreenY, 0);
+				context.getMatrices().pushMatrix();
+				context.getMatrices().translate((float) landmarkScreenX, (float) landmarkScreenY);
 				if (Hoofprint.CONFIG.itemOutlines && landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
-					RenderSystem.setShaderColor(0, 0, 0, 1);
+					// FIXME: RenderSystem.setShaderColor(0, 0, 0, 1);
 					ItemStack stack = landmark.get(LandmarkComponentTypes.STACK);
-					context.getMatrices().push();
-					context.getMatrices().translate(0, 0, -5);
+					context.getMatrices().pushMatrix();
 					context.drawItem(stack, -9, -9);
 					context.drawItem(stack, -9, -8);
 					context.drawItem(stack, -9, -7);
@@ -172,27 +172,27 @@ public class HoofprintScreen extends Screen {
 					context.drawItem(stack, -7, -9);
 					context.drawItem(stack, -7, -8);
 					context.drawItem(stack, -7, -7);
-					context.getMatrices().pop();
+					context.getMatrices().popMatrix();
 				}
-				RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
+				// FIXME: RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
 				if (landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
 					ItemStack stack = landmark.get(LandmarkComponentTypes.STACK);
 					context.drawItem(stack, -8, -8);
 				} else {
-					context.drawTexture(Identifier.tryParse("textures/map/decorations/white_banner.png"), -4, -8, 8, 8, 0, 0, 8, 8, 8, 8);
+					context.drawTexture(RenderPipelines.GUI, Identifier.tryParse("textures/map/decorations/white_banner.png"), -4, -8, 8, 8, 0, 0, 8, 8, 8, 8);
 				}
-				RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+				// FIXME: RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
 				if (hasShiftDown() && landmark.contains(LandmarkComponentTypes.NAME)) {
 					// Draw Text Below Marker
 					int textX = -this.textRenderer.getWidth(landmark.get(LandmarkComponentTypes.NAME)) / 2;
 					context.drawText(this.textRenderer, landmark.get(LandmarkComponentTypes.NAME), textX, 0, 0xFFFFFF, true);
 				}
-				context.getMatrices().pop();
+				context.getMatrices().popMatrix();
 			}
 		}
 
-		context.getMatrices().push();
-		context.getMatrices().translate(hoveredScreenX, hoveredScreenY, 0);
+		context.getMatrices().pushMatrix();
+		context.getMatrices().translate((float) hoveredScreenX, (float) hoveredScreenY);
 		if (hoveredPlayer != null && hoveredPlayer.username() != null) {
 			context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), 0, 0);
 		} else if (hoveredLandmark != null) {
@@ -215,7 +215,7 @@ public class HoofprintScreen extends Screen {
 			}
 			context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
 		}
-		context.getMatrices().pop();
+		context.getMatrices().popMatrix();
 	}
 
 	interface FloorConsumer {
@@ -247,7 +247,7 @@ public class HoofprintScreen extends Screen {
 		this.mapStorage = HoofprintMapStorage.get(dim);
 		this.centreX = client.player.getBlockX();
 		this.centreZ = client.player.getBlockZ();
-		this.guiScale = (int) client.getWindow().getScaleFactor();
+		this.guiScale = client.getWindow().getScaleFactor();
 		super.init();
 	}
 
