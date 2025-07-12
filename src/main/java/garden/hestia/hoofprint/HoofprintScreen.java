@@ -1,6 +1,5 @@
 package garden.hestia.hoofprint;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import folk.sisby.surveyor.PlayerSummary;
 import folk.sisby.surveyor.WorldSummary;
 import folk.sisby.surveyor.client.SurveyorClient;
@@ -16,6 +15,7 @@ import net.minecraft.block.MapColor;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.text.Text;
@@ -80,7 +80,7 @@ public class HoofprintScreen extends Screen {
 			if (drawHeight <= 0 || drawWidth <= 0) continue;
 			context.getMatrices().pushMatrix();
 			context.getMatrices().translate((float) worldXToRenderX(regionX1 + u), (float) worldZToRenderY(regionZ1 + v));
-			context.drawTexture(RenderPipelines.GUI, texture, 0, 0, drawWidth, drawHeight, u, v, drawWidth, drawHeight, 512, 512);
+			context.drawTexture(RenderPipelines.GUI_TEXTURED, texture, 0, 0, u, v, drawWidth, drawHeight, drawWidth, drawHeight, 512, 512);
 			context.getMatrices().popMatrix();
 		}
 		if (Hoofprint.CONFIG.renderBorder && !hideDecorations) {
@@ -139,13 +139,11 @@ public class HoofprintScreen extends Screen {
 			boolean mouseOver = player == hoveredPlayer;
 			context.getMatrices().pushMatrix();
 			context.getMatrices().translate((float) playerScreenX, (float) playerScreenY);
-			// FIXME: context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + player.yaw()));
+			context.getMatrices().rotate((float) Math.toRadians(180 + player.yaw()));
 			context.getMatrices().translate(-2.5F, -3.5F);
 			boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
-			float tint = !player.online() ? 0.3f : mouseOver ? 0.8f : 1f;
-			// FIXME: RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), tint, tint * (friend ? 0.3f : 1.0f), 1.0F);
-			context.drawTexture(RenderPipelines.GUI, Identifier.tryParse("textures/map/decorations/player.png"), 0, 0, 5, 7, 2, 0, 5, 7, 8, 8);
-			// FIXME: RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+			int tint = !player.online() ? 77 : mouseOver ? 204 : 255;
+			context.drawTexture(RenderPipelines.GUI_TEXTURED, Identifier.tryParse("textures/map/decorations/player.png"), 0, 0, 2, 0, 5, 7, 5, 7, 8, 8 ,ColorHelper.getArgb(255, (friend ? 0 : 255) * tint / 255, tint, (friend ? 76 : 255) * tint / 255));
 			context.getMatrices().popMatrix();
 		}
 
@@ -155,33 +153,25 @@ public class HoofprintScreen extends Screen {
 				if (pos == null || hideDecorations) continue;
 				double landmarkScreenX = renderToScreen(worldXToRenderX(pos.getX()));
 				double landmarkScreenY = renderToScreen(worldZToRenderY(pos.getZ()));
-				float[] landmarkColors = (landmark.contains(LandmarkComponentTypes.COLOR) && !landmark.contains(LandmarkComponentTypes.STACK)) ? ColorUtil.getColorFromArgb(landmark.get(LandmarkComponentTypes.COLOR)) : new float[]{1.0f, 1.0f, 1.0f};
+				int landmarkColor = landmark.getOrDefault(LandmarkComponentTypes.COLOR, 0xFFFFFF);
 				boolean mouseOver = landmark == hoveredLandmark;
-				float tint = mouseOver ? 0.7F : 1.0F;
+				int tint = mouseOver ? 0xB2B2B2 : 0xFFFFFF;
 				context.getMatrices().pushMatrix();
 				context.getMatrices().translate((float) landmarkScreenX, (float) landmarkScreenY);
 				if (Hoofprint.CONFIG.itemOutlines && landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
-					// FIXME: RenderSystem.setShaderColor(0, 0, 0, 1);
-					ItemStack stack = landmark.get(LandmarkComponentTypes.STACK);
-					context.getMatrices().pushMatrix();
-					context.drawItem(stack, -9, -9);
-					context.drawItem(stack, -9, -8);
-					context.drawItem(stack, -9, -7);
-					context.drawItem(stack, -8, -9);
-					context.drawItem(stack, -8, -7);
-					context.drawItem(stack, -7, -9);
-					context.drawItem(stack, -7, -8);
-					context.drawItem(stack, -7, -7);
-					context.getMatrices().popMatrix();
+					// FIXME: Find some new way to do item outlines on 1.21.7
+					// Probably make a custom component and then mixin into how itemstacks w/ that component are rendered lol
 				}
-				// FIXME: RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
 				if (landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
 					ItemStack stack = landmark.get(LandmarkComponentTypes.STACK);
-					context.drawItem(stack, -8, -8);
+					if (mouseOver) {
+						stack = stack.copy();
+						stack.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+					}
+					context.drawItemWithoutEntity(stack, -8, -8);
 				} else {
-					context.drawTexture(RenderPipelines.GUI, Identifier.tryParse("textures/map/decorations/white_banner.png"), -4, -8, 8, 8, 0, 0, 8, 8, 8, 8);
+					context.drawTexture(RenderPipelines.GUI_TEXTURED, Identifier.tryParse("textures/map/decorations/white_banner.png"), -4, -8, 0, 0, 8, 8, 8, 8, 8, 8, 0xFF000000 | ColorUtil.tint(landmarkColor, tint));
 				}
-				// FIXME: RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
 				if (hasShiftDown() && landmark.contains(LandmarkComponentTypes.NAME)) {
 					// Draw Text Below Marker
 					int textX = -this.textRenderer.getWidth(landmark.get(LandmarkComponentTypes.NAME)) / 2;
@@ -191,16 +181,14 @@ public class HoofprintScreen extends Screen {
 			}
 		}
 
-		context.getMatrices().pushMatrix();
-		context.getMatrices().translate((float) hoveredScreenX, (float) hoveredScreenY);
 		if (hoveredPlayer != null && hoveredPlayer.username() != null) {
-			context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), 0, 0);
+			context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), mouseX, mouseY);
 		} else if (hoveredLandmark != null) {
 			List<Text> tooltipLines = new ArrayList<>();
 			if (hoveredLandmark.contains(LandmarkComponentTypes.NAME)) tooltipLines.add(hoveredLandmark.get(LandmarkComponentTypes.NAME));
 			if (hoveredLandmark.contains(LandmarkComponentTypes.LORE)) tooltipLines.addAll(hoveredLandmark.get(LandmarkComponentTypes.LORE).stream().map(t -> t.copy().formatted(Formatting.GRAY)).toList());
 			if (!tooltipLines.isEmpty()) {
-				context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
+				context.drawTooltip(this.textRenderer, tooltipLines, mouseX, mouseY);
 			}
 		} else if (inspectMode) {
 			List<Text> tooltipLines = new ArrayList<>();
@@ -213,9 +201,8 @@ public class HoofprintScreen extends Screen {
 			}))) {
 				tooltipLines.add(Text.of("x: %d, z: %d".formatted(hoveredWorldX, hoveredWorldZ)));
 			}
-			context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
+			context.drawTooltip(this.textRenderer, tooltipLines, mouseX, mouseY);
 		}
-		context.getMatrices().popMatrix();
 	}
 
 	interface FloorConsumer {
@@ -279,7 +266,7 @@ public class HoofprintScreen extends Screen {
 					landmarks.remove(client.world, hoveredLandmark.owner(), hoveredLandmark.id());
 				}
 			}
-			case GLFW.GLFW_KEY_INSERT -> ifTerrainUnderCursor(((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
+			case GLFW.GLFW_KEY_L -> ifTerrainUnderCursor(((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
 				WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
 				if (landmarks == null) return;
 				landmarks.put(client.world, Landmark.createIncremental(landmarks, SurveyorClient.getClientUuid(), Identifier.of("hoofprint", "block"), builder -> {
@@ -368,7 +355,7 @@ public class HoofprintScreen extends Screen {
 	}
 
 	float getScaleFactor() {
-		return (float) (guiScale / client.getWindow().getScaleFactor());
+		return guiScale / (float) client.getWindow().getScaleFactor();
 	}
 
 	float getWidth() {
