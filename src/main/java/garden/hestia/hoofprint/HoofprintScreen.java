@@ -175,7 +175,7 @@ public class HoofprintScreen extends Screen {
 				if (hasShiftDown() && landmark.contains(LandmarkComponentTypes.NAME)) {
 					// Draw Text Below Marker
 					int textX = -this.textRenderer.getWidth(landmark.get(LandmarkComponentTypes.NAME)) / 2;
-					context.drawText(this.textRenderer, landmark.get(LandmarkComponentTypes.NAME), textX, 0, 0xFFFFFF, true);
+					context.drawText(this.textRenderer, landmark.get(LandmarkComponentTypes.NAME), textX, 0, 0xFFFFFFFF, true);
 				}
 				context.getMatrices().popMatrix();
 			}
