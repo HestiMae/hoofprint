@@ -178,8 +178,8 @@ public class HoofprintScreen extends Screen {
 						context.fill(0, 0, 16, 16, 0x44FFFFFF & color);
 						if (!chunks.contains(new ChunkPos(chunk.x - 1, chunk.z))) context.fill(0, 0, 1, 16, color);
 						if (!chunks.contains(new ChunkPos(chunk.x , chunk.z - 1))) context.fill(0, 0, 16, 1, color);
-						if (!chunks.contains(new ChunkPos(chunk.x + 1, chunk.z))) context.fill(16, 0, 16 + 1, 16, color);
-						if (!chunks.contains(new ChunkPos(chunk.x, chunk.z + 1))) context.fill(0, 16, 16, 16 + 1, color);
+						if (!chunks.contains(new ChunkPos(chunk.x + 1, chunk.z))) context.fill(15, 0, 15 + 1, 16, color);
+						if (!chunks.contains(new ChunkPos(chunk.x, chunk.z + 1))) context.fill(0, 15, 15, 15 + 1, color);
 						context.getMatrices().pop();
 					}
 					context.getMatrices().pop();
