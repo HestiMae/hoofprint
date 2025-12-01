@@ -10,6 +10,7 @@ import folk.sisby.surveyor.landmark.component.LandmarkComponentTypes;
 import folk.sisby.surveyor.terrain.ChunkSummary;
 import folk.sisby.surveyor.terrain.LayerSummary;
 import folk.sisby.surveyor.terrain.WorldTerrainSummary;
+import folk.sisby.surveyor.util.RegionPos;
 import garden.hestia.hoofprint.util.ColorUtil;
 import net.minecraft.block.Block;
 import net.minecraft.block.MapColor;
@@ -27,8 +28,10 @@ import net.minecraft.world.border.WorldBorder;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class HoofprintScreen extends Screen {
@@ -66,11 +69,11 @@ public class HoofprintScreen extends Screen {
 		int renderZ1 = Math.max((int) Math.floor(screenYToWorldZ(0.0)), Hoofprint.CONFIG.renderOutsideBorder ? Integer.MIN_VALUE : borderZ1);
 		int renderZ2 = Math.min((int) Math.ceil(screenYToWorldZ(height)), Hoofprint.CONFIG.renderOutsideBorder ? Integer.MAX_VALUE : borderZ2);
 
-		for (Map.Entry<ChunkPos, Identifier> entry : (caveMode ? mapStorage.caveRegionTextures : mapStorage.regionTextures).entrySet()) {
-			ChunkPos regionPos = entry.getKey();
+		for (Map.Entry<RegionPos, Identifier> entry : (caveMode ? mapStorage.caveRegionTextures : mapStorage.regionTextures).entrySet()) {
+			RegionPos regionPos = entry.getKey();
 			Identifier texture = entry.getValue();
-			int regionX1 = regionPos.x * 32 * 16;
-			int regionZ1 = regionPos.z * 32 * 16;
+			int regionX1 = regionPos.x() * 32 * 16;
+			int regionZ1 = regionPos.z() * 32 * 16;
 			int u = Math.max(0, renderX1 - regionX1);
 			int v = Math.max(0, renderZ1 - regionZ1);
 			int drawWidth = Math.min(512, renderX2 - regionX1) - u;
@@ -150,7 +153,18 @@ public class HoofprintScreen extends Screen {
 		for (Map<Identifier, Landmark> map : this.mapStorage.landmarks.values()) {
 			for (Landmark landmark : map.values()) {
 				BlockPos pos = landmark.get(LandmarkComponentTypes.POS);
-				if (pos == null || hideDecorations) continue;
+				if (hideDecorations) continue;
+				if (pos == null) {
+					Set<ChunkPos> chunks = RegionPos.regionsToChunks(landmark.getOrDefault(LandmarkComponentTypes.CHUNKS, new HashMap<>()));
+					if (!chunks.isEmpty()) {
+						for (ChunkPos chunk : chunks) {
+							double screenX = renderToScreen(worldXToRenderX(chunk.getStartX()));
+							double screenY = renderToScreen(worldZToRenderY(chunk.getStartZ()));
+							context.drawBorder((int) screenX, (int) screenY, 16, 16, 0xFF000000 | landmark.getOrDefault(LandmarkComponentTypes.COLOR, 0xFFFFFF));
+						}
+					}
+					continue;
+				}
 				double landmarkScreenX = renderToScreen(worldXToRenderX(pos.getX()));
 				double landmarkScreenY = renderToScreen(worldZToRenderY(pos.getZ()));
 				float[] landmarkColors = (landmark.contains(LandmarkComponentTypes.COLOR) && !landmark.contains(LandmarkComponentTypes.STACK)) ? ColorUtil.getColorFromArgb(landmark.get(LandmarkComponentTypes.COLOR)) : new float[]{1.0f, 1.0f, 1.0f};

@@ -9,6 +9,7 @@ import folk.sisby.surveyor.terrain.ChunkSummary;
 import folk.sisby.surveyor.terrain.LayerSummary;
 import folk.sisby.surveyor.terrain.RegionSummary;
 import folk.sisby.surveyor.terrain.WorldTerrainSummary;
+import folk.sisby.surveyor.util.RegionPos;
 import folk.sisby.surveyor.util.RegistryPalette;
 import garden.hestia.hoofprint.util.ColorUtil;
 import garden.hestia.hoofprint.util.ConstantLightMap;
@@ -39,10 +40,10 @@ public class HoofprintMapStorage {
 	private static final Map<RegistryKey<World>, HoofprintMapStorage> INSTANCES = new HashMap<>();
 	public static final String TEXTURE_PREFIX = "hoofprint/map";
 
-	Map<ChunkPos, Identifier> regionTextures = new ConcurrentHashMap<>();
-	Map<ChunkPos, Identifier> caveRegionTextures = new ConcurrentHashMap<>();
-	Map<ChunkPos, BitSet> terrainFilled = new ConcurrentHashMap<>();
-	Map<ChunkPos, BitSet> terrainQueue = new ConcurrentHashMap<>();
+	Map<RegionPos, Identifier> regionTextures = new ConcurrentHashMap<>();
+	Map<RegionPos, Identifier> caveRegionTextures = new ConcurrentHashMap<>();
+	Map<RegionPos, BitSet> terrainFilled = new ConcurrentHashMap<>();
+	Map<RegionPos, BitSet> terrainQueue = new ConcurrentHashMap<>();
 	Map<UUID, Map<Identifier, Landmark>> landmarks = new ConcurrentHashMap<>();
 
 	public static HoofprintMapStorage get(RegistryKey<World> dim) {
@@ -53,15 +54,14 @@ public class HoofprintMapStorage {
 		INSTANCES.clear();
 	}
 
-	public void worldLoad(ClientWorld world, WorldSummary summary, ClientPlayerEntity player, Map<ChunkPos, BitSet> terrain, Multimap<RegistryKey<Structure>, ChunkPos> structures, Multimap<UUID, Identifier> landmarks) {
+	public void worldLoad(ClientWorld world, WorldSummary summary, ClientPlayerEntity player, Map<RegionPos, BitSet> terrain, Multimap<RegistryKey<Structure>, ChunkPos> structures, Multimap<UUID, Identifier> landmarks) {
 		terrainUpdated(world, summary.terrain(), WorldTerrainSummary.toKeys(terrain));
 		landmarksAdded(world, summary.landmarks(), landmarks);
 	}
 
 	public void terrainUpdated(World world, WorldTerrainSummary worldTerrainSummary, Collection<ChunkPos> chunks) {
 		for (ChunkPos chunkPos : chunks) {
-			ChunkPos rPos = new ChunkPos(RegionSummary.chunkToRegion(chunkPos.x), RegionSummary.chunkToRegion(chunkPos.z));
-			terrainQueue.computeIfAbsent(rPos, s -> new BitSet(RegionSummary.BITSET_SIZE)).set(RegionSummary.bitForChunk(chunkPos));
+			terrainQueue.computeIfAbsent(RegionPos.of(chunkPos), s -> new BitSet(RegionPos.CHUNK_AREA)).set(RegionPos.chunkToBit(chunkPos));
 		}
 	}
 
@@ -79,23 +79,23 @@ public class HoofprintMapStorage {
 	}
 
 	public void tick(World world) {
-		ChunkPos rPos = terrainQueue.keySet().stream().findFirst().orElse(null);
+		RegionPos rPos = terrainQueue.keySet().stream().findFirst().orElse(null);
 		if (rPos != null) {
 			bake(world, rPos, terrainQueue.remove(rPos));
 		}
 	}
 
-	private void bake(World world, ChunkPos rPos, BitSet changes) {
+	private void bake(World world, RegionPos rPos, BitSet changes) {
 		WorldTerrainSummary terrain = WorldSummary.of(world).terrain();
 		if (terrain == null) return;
 		RegionSummary region = terrain.getRegion(rPos);
-		BitSet filledArea = terrainFilled.computeIfAbsent(rPos, s -> new BitSet(RegionSummary.BITSET_SIZE));
+		BitSet filledArea = terrainFilled.computeIfAbsent(rPos, s -> new BitSet(RegionPos.CHUNK_AREA));
 		changes.andNot(filledArea); // Don't live update the existing map.
 		if (changes.isEmpty()) return;
 		filledArea.or(changes);
 		if (Hoofprint.CONFIG.logMapBaking) Hoofprint.LOGGER.info("[Hoofprint] Baking {} chunks to the map texture for region {}", changes.cardinality(), rPos);
 		ConstantLightMap lightMap = Hoofprint.CONFIG.dimensionLightMaps.getOrDefault(world.getRegistryKey().getValue().toString(), Hoofprint.CONFIG.lightMap);
-		ChunkPos regionChunkOrigin = new ChunkPos(RegionSummary.regionToChunk(rPos.x), RegionSummary.regionToChunk(rPos.z));
+		ChunkPos regionChunkOrigin = rPos.toChunk();
 		Integer maxY = Hoofprint.CONFIG.dimensionMaxYValues.getOrDefault(world.getRegistryKey().getValue().toString(), null);
 
 		LayerSummary.Raw[][] chunkSummaries = new LayerSummary.Raw[34][34];
@@ -107,7 +107,7 @@ public class HoofprintMapStorage {
 		)) {
 			for (int chunkX = 0; chunkX < 32; chunkX++) {
 				for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
-					if (!changes.get(RegionSummary.bitForXZ(chunkX, chunkZ))) continue;
+					if (!changes.get(RegionPos.chunkToBit(chunkX, chunkZ))) continue;
 					ChunkPos chunkPos = new ChunkPos(regionChunkOrigin.x + chunkX, regionChunkOrigin.z + chunkZ);
 					LayerSummary.Raw layer = config.flattener.apply(terrain.get(chunkPos), chunkX, chunkZ);
 					config.cache[chunkX + 1][chunkZ + 1] = layer;
@@ -138,7 +138,7 @@ public class HoofprintMapStorage {
 
 	record LayerConfiguration(LayerSummary.Raw[][] cache, NativeImageBackedTexture texture, Function3<ChunkSummary, Integer, Integer, LayerSummary.Raw> flattener) {}
 
-	NativeImageBackedTexture getNativeTexture(ChunkPos rPos, Map<ChunkPos, Identifier> regionTextures) {
+	NativeImageBackedTexture getNativeTexture(RegionPos rPos, Map<RegionPos, Identifier> regionTextures) {
 		Identifier textureId = regionTextures.computeIfAbsent(rPos, r -> MinecraftClient.getInstance().getTextureManager().registerDynamicTexture(TEXTURE_PREFIX, new NativeImageBackedTexture(512, 512, true)));
 		NativeImageBackedTexture terrainTexture = (NativeImageBackedTexture) MinecraftClient.getInstance().getTextureManager().getTexture(textureId);
 		NativeImage image = terrainTexture.getImage();
