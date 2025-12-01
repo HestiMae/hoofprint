@@ -105,7 +105,20 @@ public class HoofprintScreen extends Screen {
 		for (Map<Identifier, Landmark> map : this.mapStorage.landmarks.values()) {
 			for (Landmark landmark : map.values()) {
 				BlockPos pos = landmark.get(LandmarkComponentTypes.POS);
-				if (pos == null || hideDecorations) continue;
+				if (hideDecorations) continue;
+				if (pos == null) {
+					Set<ChunkPos> chunks = RegionPos.regionsToChunks(landmark.getOrDefault(LandmarkComponentTypes.CHUNKS, new HashMap<>()));
+					for (ChunkPos chunk : chunks) {
+						double screenX = renderToScreen(worldXToRenderX(chunk.getStartX()));
+						double screenY = renderToScreen(worldZToRenderY(chunk.getStartZ()));
+						boolean isInside = hoveredScreenX > screenX && hoveredScreenX < screenX + 16 * scaleFactor && hoveredScreenY > screenY && hoveredScreenY < screenY + 16 * scaleFactor;
+						if (!hasShiftDown() && isInside && 10 < bestDistance) {
+							hoveredLandmark = landmark;
+							bestDistance = 10;
+						}
+					}
+					continue;
+				}
 				double landmarkCenterX = renderToScreen(worldXToRenderX(pos.getX()));
 				double landmarkCenterY = renderToScreen(worldZToRenderY(pos.getZ()));
 				double mouseDistance = (hoveredScreenX - landmarkCenterX) * (hoveredScreenX - landmarkCenterX) + (hoveredScreenY - landmarkCenterY) * (hoveredScreenY - landmarkCenterY);
@@ -156,12 +169,10 @@ public class HoofprintScreen extends Screen {
 				if (hideDecorations) continue;
 				if (pos == null) {
 					Set<ChunkPos> chunks = RegionPos.regionsToChunks(landmark.getOrDefault(LandmarkComponentTypes.CHUNKS, new HashMap<>()));
-					if (!chunks.isEmpty()) {
-						for (ChunkPos chunk : chunks) {
-							double screenX = renderToScreen(worldXToRenderX(chunk.getStartX()));
-							double screenY = renderToScreen(worldZToRenderY(chunk.getStartZ()));
-							context.drawBorder((int) screenX, (int) screenY, 16, 16, 0xFF000000 | landmark.getOrDefault(LandmarkComponentTypes.COLOR, 0xFFFFFF));
-						}
+					for (ChunkPos chunk : chunks) {
+						double screenX = renderToScreen(worldXToRenderX(chunk.getStartX()));
+						double screenY = renderToScreen(worldZToRenderY(chunk.getStartZ()));
+						context.drawBorder((int) screenX, (int) screenY, (int) (16 * scaleFactor), (int) (16 * scaleFactor), 0xFF000000 | landmark.getOrDefault(LandmarkComponentTypes.COLOR, 0xFFFFFF));
 					}
 					continue;
 				}
