@@ -111,7 +111,7 @@ public class HoofprintScreen extends Screen {
 					for (ChunkPos chunk : chunks) {
 						double screenX = renderToScreen(worldXToRenderX(chunk.getStartX()));
 						double screenY = renderToScreen(worldZToRenderY(chunk.getStartZ()));
-						boolean isInside = hoveredScreenX > screenX && hoveredScreenX < screenX + 16 * scaleFactor && hoveredScreenY > screenY && hoveredScreenY < screenY + 16 * scaleFactor;
+						boolean isInside = hoveredScreenX >= screenX && hoveredScreenX < screenX + 16 * scaleFactor && hoveredScreenY >= screenY && hoveredScreenY < screenY + 16 * scaleFactor;
 						if (!hasShiftDown() && isInside && 10 < bestDistance) {
 							hoveredLandmark = landmark;
 							bestDistance = 10;
@@ -169,11 +169,20 @@ public class HoofprintScreen extends Screen {
 				if (hideDecorations) continue;
 				if (pos == null) {
 					Set<ChunkPos> chunks = RegionPos.regionsToChunks(landmark.getOrDefault(LandmarkComponentTypes.CHUNKS, new HashMap<>()));
+					context.getMatrices().push();
+					context.getMatrices().scale(scaleFactor, scaleFactor, 1.0f);
 					for (ChunkPos chunk : chunks) {
-						double screenX = renderToScreen(worldXToRenderX(chunk.getStartX()));
-						double screenY = renderToScreen(worldZToRenderY(chunk.getStartZ()));
-						context.drawBorder((int) screenX, (int) screenY, (int) (16 * scaleFactor), (int) (16 * scaleFactor), 0xFF000000 | landmark.getOrDefault(LandmarkComponentTypes.COLOR, 0xFFFFFF));
+						context.getMatrices().push();
+						context.getMatrices().translate(worldXToRenderX(chunk.getStartX()), worldZToRenderY(chunk.getStartZ()), 0);
+						int color = 0xFF_000000 | ColorUtil.applyBrightnessRGB(hoveredLandmark == landmark ? ColorUtil.Brightness.HIGH : ColorUtil.Brightness.NORMAL, landmark.getOrDefault(LandmarkComponentTypes.COLOR, 0xFFFFFF));
+						context.fill(0, 0, 16, 16, 0x44FFFFFF & color);
+						if (!chunks.contains(new ChunkPos(chunk.x - 1, chunk.z))) context.fill(0, 0, 1, 16, color);
+						if (!chunks.contains(new ChunkPos(chunk.x , chunk.z - 1))) context.fill(0, 0, 16, 1, color);
+						if (!chunks.contains(new ChunkPos(chunk.x + 1, chunk.z))) context.fill(16, 0, 16 + 1, 16, color);
+						if (!chunks.contains(new ChunkPos(chunk.x, chunk.z + 1))) context.fill(0, 16, 16, 16 + 1, color);
+						context.getMatrices().pop();
 					}
+					context.getMatrices().pop();
 					continue;
 				}
 				double landmarkScreenX = renderToScreen(worldXToRenderX(pos.getX()));
