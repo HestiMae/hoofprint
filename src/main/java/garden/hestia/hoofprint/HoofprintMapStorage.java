@@ -140,7 +140,7 @@ public class HoofprintMapStorage {
 
 	NativeImageBackedTexture getNativeTexture(RegionPos rPos, String qualifier, Map<RegionPos, Identifier> regionTextures) {
 		Identifier textureId = regionTextures.computeIfAbsent(rPos, r -> {
-			Identifier inId = Identifier.of(Hoofprint.ID, "%s/%s/%s/%s".formatted(TEXTURE_PREFIX, qualifier, rPos.x, rPos.z));
+			Identifier inId = Identifier.of(Hoofprint.ID, "%s/%s/%s/%s".formatted(TEXTURE_PREFIX, qualifier, rPos.x(), rPos.z()));
 			MinecraftClient.getInstance().getTextureManager().registerTexture(inId, new NativeImageBackedTexture(inId.toString(), 512, 512, true));
 			return inId;
 		});

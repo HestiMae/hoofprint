@@ -169,20 +169,20 @@ public class HoofprintScreen extends Screen {
 				if (hideDecorations) continue;
 				if (pos == null) {
 					Set<ChunkPos> chunks = RegionPos.regionsToChunks(landmark.getOrDefault(LandmarkComponentTypes.CHUNKS, new HashMap<>()));
-					context.getMatrices().push();
-					context.getMatrices().scale(scaleFactor, scaleFactor, 1.0f);
+					context.getMatrices().pushMatrix();
+					context.getMatrices().scale(scaleFactor, scaleFactor);
 					for (ChunkPos chunk : chunks) {
-						context.getMatrices().push();
-						context.getMatrices().translate(worldXToRenderX(chunk.getStartX()), worldZToRenderY(chunk.getStartZ()), 0);
+						context.getMatrices().pushMatrix();
+						context.getMatrices().translate((float) worldXToRenderX(chunk.getStartX()), (float) worldZToRenderY(chunk.getStartZ()));
 						int color = 0xFF_000000 | ColorUtil.applyBrightnessRGB(hoveredLandmark == landmark ? ColorUtil.Brightness.HIGH : ColorUtil.Brightness.NORMAL, landmark.getOrDefault(LandmarkComponentTypes.COLOR, 0xFFFFFF));
 						context.fill(0, 0, 16, 16, 0x44FFFFFF & color);
 						if (!chunks.contains(new ChunkPos(chunk.x - 1, chunk.z))) context.fill(0, 0, 1, 16, color);
 						if (!chunks.contains(new ChunkPos(chunk.x , chunk.z - 1))) context.fill(0, 0, 16, 1, color);
 						if (!chunks.contains(new ChunkPos(chunk.x + 1, chunk.z))) context.fill(15, 0, 15 + 1, 16, color);
 						if (!chunks.contains(new ChunkPos(chunk.x, chunk.z + 1))) context.fill(0, 15, 15, 15 + 1, color);
-						context.getMatrices().pop();
+						context.getMatrices().popMatrix();
 					}
-					context.getMatrices().pop();
+					context.getMatrices().popMatrix();
 					continue;
 				}
 				double landmarkScreenX = renderToScreen(worldXToRenderX(pos.getX()));
