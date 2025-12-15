@@ -61,10 +61,9 @@ public class HoofprintConfig extends WrappedConfig {
 	public Dimensions dimensions = new Dimensions();
 
 	public static class Dimensions implements Section {
-		@Comment("What Y co-ordinate to start the map at, in non-cave mode.")
-		public Map<String, Integer> ceilings = ValueMap.builder(0)
-			.put("minecraft:the_nether", 126)
-			.build();
+		@Comment("Which lightmap to use for dimensions not specified below.")
+		@Comment("This changes the color tone of the lighting, when lighting is enabled.")
+		public ConstantLightMap defaultLightmap = ConstantLightMap.DAY;
 
 		@Comment("Which lightmap to use for each dimension.")
 		@Comment("This changes the color tone of the lighting, when lighting is enabled.")
@@ -73,9 +72,10 @@ public class HoofprintConfig extends WrappedConfig {
 			.put("minecraft:the_end", ConstantLightMap.END)
 			.build();
 
-		@Comment("Which lightmap to use for dimensions not specified above.")
-		@Comment("This changes the color tone of the lighting, when lighting is enabled.")
-		public ConstantLightMap defaultLightmap = ConstantLightMap.DAY;
+		@Comment("What Y co-ordinate to start the map at, in non-cave mode.")
+		public Map<String, Integer> ceilings = ValueMap.builder(0)
+			.put("minecraft:the_nether", 126)
+			.build();
 	}
 
 	@Comment("Options for debugging issues with hoofprint.")
