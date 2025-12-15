@@ -75,17 +75,17 @@ public class HoofprintScreen extends Screen {
 
 		WorldBorder worldBorder = client.world.getWorldBorder();
 		double size = worldBorder.getSize();
-		int borderX1 = Math.max((int) Math.floor(worldBorder.getCenterX() - size / 2.0), mapStorage.terrainFilled.keySet().stream().mapToInt(RegionPos::blockX).min().orElse(Integer.MIN_VALUE));
-		int borderX2 = Math.min((int) Math.ceil(worldBorder.getCenterX() + size / 2.0), mapStorage.terrainFilled.keySet().stream().mapToInt(r -> r.blockX() + RegionPos.BLOCK_SIZE).max().orElse(Integer.MAX_VALUE));
-		int borderZ1 = Math.max((int) Math.floor(worldBorder.getCenterZ() - size / 2.0), mapStorage.terrainFilled.keySet().stream().mapToInt(RegionPos::blockZ).min().orElse(Integer.MIN_VALUE));
-		int borderZ2 = Math.min((int) Math.ceil(worldBorder.getCenterZ() + size / 2.0), mapStorage.terrainFilled.keySet().stream().mapToInt(r -> r.blockZ() + RegionPos.BLOCK_SIZE).max().orElse(Integer.MAX_VALUE));
+		int borderX1 = Math.max((int) Math.floor(worldBorder.getCenterX() - size / 2.0), mapStorage.minBlockX);
+		int borderX2 = Math.min((int) Math.ceil(worldBorder.getCenterX() + size / 2.0), mapStorage.maxBlockX);
+		int borderZ1 = Math.max((int) Math.floor(worldBorder.getCenterZ() - size / 2.0), mapStorage.minBlockZ);
+		int borderZ2 = Math.min((int) Math.ceil(worldBorder.getCenterZ() + size / 2.0), mapStorage.maxBlockZ);
 
 
 		double areaX1 = Math.max(worldXToRenderX(borderX1) - 8, -256 + (worldXToRenderX(borderX1) - 8) % 256);
 		double areaX2 = Math.min(worldXToRenderX(borderX2) + 8, screenToRender(width) + (worldXToRenderX(borderX2) + 8) % 256);
 		double areaY1 = Math.max(worldZToRenderY(borderZ1) - 8, -256 + (worldZToRenderY(borderZ1) - 8) % 256);
 		double areaY2 = Math.min(worldZToRenderY(borderZ2) + 8, screenToRender(height) + (worldZToRenderY(borderZ2) + 8) % 256);
-		if ((areaX2 - areaX1) > 0 && (areaY2 - areaY1) > 0) {
+		if (Hoofprint.CONFIG.renderBackground && (areaX2 - areaX1) > 0 && (areaY2 - areaY1) > 0) {
 			context.getMatrices().push();
 			context.getMatrices().translate(areaX1, areaY1, 0);
 			context.drawNineSlicedTexture(BACKGROUND, 0, 0, (int) (areaX2 - areaX1), (int) (areaY2 - areaY1), 18, 256, 256, 0, 0);
@@ -206,7 +206,7 @@ public class HoofprintScreen extends Screen {
 			context.getMatrices().pop();
 		}
 		if (!mapStorage.terrainQueue.isEmpty()) {
-			context.drawText(this.textRenderer, Text.literal("Loading" + ".".repeat((cursorFrame / 13) % 4)).formatted(Formatting.GRAY), width-this.textRenderer.getWidth(Text.of("Loading...")), height - 10, 0xFFFFFF, false);
+			context.drawText(this.textRenderer, Text.literal("Loading" + ".".repeat((cursorFrame / 8) % 4)).formatted(Formatting.GRAY), width-this.textRenderer.getWidth(Text.of("Loading...")), height - 10, 0xFFFFFF, false);
 		}
 		super.render(context, mouseX, mouseY, delta);
 	}

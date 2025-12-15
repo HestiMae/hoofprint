@@ -15,6 +15,7 @@ public class HoofprintConfig extends WrappedConfig {
 	public boolean itemOutlines = true;
 	public boolean showOffline = true;
 	public boolean logMapBaking = false;
+	public boolean renderBackground = true;
 	@IntegerRange(min = 0, max = 16)
 	public int blendRadius = 9;
 	@IntegerRange(min = 1, max = 200)

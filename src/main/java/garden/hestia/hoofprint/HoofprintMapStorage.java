@@ -42,11 +42,15 @@ public class HoofprintMapStorage {
 	private static final Map<RegistryKey<World>, HoofprintMapStorage> INSTANCES = new HashMap<>();
 	public static final String TEXTURE_PREFIX = "hoofprint/map";
 
-	Map<RegionPos, Identifier> regionTextures = new ConcurrentHashMap<>();
-	Map<RegionPos, Identifier> caveRegionTextures = new ConcurrentHashMap<>();
-	Map<RegionPos, BitSet> terrainFilled = new ConcurrentHashMap<>();
-	Map<RegionPos, BitSet> terrainQueue = Collections.synchronizedMap(new LinkedHashMap<>());
-	Map<UUID, Map<Identifier, Landmark>> landmarks = new ConcurrentHashMap<>();
+	public final Map<RegionPos, Identifier> regionTextures = new ConcurrentHashMap<>();
+	public final Map<RegionPos, Identifier> caveRegionTextures = new ConcurrentHashMap<>();
+	public final Map<RegionPos, BitSet> terrainFilled = new ConcurrentHashMap<>();
+	public final Map<RegionPos, BitSet> terrainQueue = Collections.synchronizedMap(new LinkedHashMap<>());
+	public final Map<UUID, Map<Identifier, Landmark>> landmarks = new ConcurrentHashMap<>();
+	public int minBlockX = 0;
+	public int maxBlockX = 0;
+	public int minBlockZ = 0;
+	public int maxBlockZ = 0;
 
 	public static HoofprintMapStorage get(RegistryKey<World> dim) {
 		return HoofprintMapStorage.INSTANCES.computeIfAbsent(dim, (key) -> new HoofprintMapStorage());
@@ -63,6 +67,10 @@ public class HoofprintMapStorage {
 
 	public void terrainUpdated(World world, WorldTerrainSummary worldTerrainSummary, Collection<ChunkPos> chunks) {
 		for (ChunkPos chunkPos : chunks) {
+			minBlockX = Math.min(minBlockX, chunkPos.getStartX());
+			maxBlockX = Math.max(maxBlockX, chunkPos.getEndX());
+			minBlockZ = Math.min(minBlockZ, chunkPos.getStartZ());
+			maxBlockZ = Math.max(maxBlockZ, chunkPos.getEndZ());
 			terrainQueue.computeIfAbsent(RegionPos.of(chunkPos), s -> new BitSet(RegionPos.CHUNK_AREA)).set(RegionPos.chunkToBit(chunkPos));
 		}
 	}
@@ -116,7 +124,7 @@ public class HoofprintMapStorage {
 						for (int z = -1; z <= 1; z++) {
 							if (config.cache[chunkX + 1 + x][chunkZ + 1 + z] == null) { // Surrounding layers
 								ChunkPos layerPos = new ChunkPos(regionChunkOrigin.x + chunkX + x, regionChunkOrigin.z + chunkZ + z);
-								LayerSummary.Raw layer = config.flattener.apply(terrain.get(layerPos), chunkX, chunkZ);
+								LayerSummary.Raw layer = config.flattener.apply(terrain.get(layerPos), chunkX + x, chunkZ + z);
 								if (layer == null) continue;
 								config.cache[chunkX + 1 + x][chunkZ + 1 + z] = layer;
 								RegistryPalette<Biome>.ValueView biomePalette = terrain.getRegion(RegionPos.of(layerPos)).getBiomePalette();
