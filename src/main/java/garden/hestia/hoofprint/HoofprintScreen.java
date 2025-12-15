@@ -179,16 +179,7 @@ public class HoofprintScreen extends Screen {
 		} else {
 			context.getMatrices().push();
 			context.getMatrices().translate(hoveredScreenX, hoveredScreenY, 0);
-			if (hoveredPlayer != null && hoveredPlayer.username() != null) {
-				context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), 0, 0);
-			} else if (hoveredLandmark != null) {
-				List<Text> tooltipLines = new ArrayList<>();
-				if (hoveredLandmark.contains(LandmarkComponentTypes.NAME)) tooltipLines.add(hoveredLandmark.get(LandmarkComponentTypes.NAME));
-				if (hoveredLandmark.contains(LandmarkComponentTypes.LORE)) tooltipLines.addAll(hoveredLandmark.get(LandmarkComponentTypes.LORE).stream().map(t -> t.copy().formatted(Formatting.GRAY)).toList());
-				if (!tooltipLines.isEmpty()) {
-					context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
-				}
-			} else if (inspectMode) {
+			if (inspectMode) {
 				List<Text> tooltipLines = new ArrayList<>();
 				if (!ifTerrainUnderCursor(((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
 					tooltipLines.add(Text.of("x: %d, y: %d, z: %d".formatted(hoveredWorldX, y, hoveredWorldZ)));
@@ -201,6 +192,15 @@ public class HoofprintScreen extends Screen {
 					tooltipLines.add(Text.of("x: %d, z: %d".formatted(hoveredWorldX, hoveredWorldZ)));
 				}
 				context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
+			} else if (hoveredPlayer != null && hoveredPlayer.username() != null) {
+				context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), 0, 0);
+			} else if (hoveredLandmark != null) {
+				List<Text> tooltipLines = new ArrayList<>();
+				if (hoveredLandmark.contains(LandmarkComponentTypes.NAME)) tooltipLines.add(hoveredLandmark.get(LandmarkComponentTypes.NAME));
+				if (hoveredLandmark.contains(LandmarkComponentTypes.LORE)) tooltipLines.addAll(hoveredLandmark.get(LandmarkComponentTypes.LORE).stream().map(t -> t.copy().formatted(Formatting.GRAY)).toList());
+				if (!tooltipLines.isEmpty()) {
+					context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
+				}
 			}
 			context.getMatrices().pop();
 		}
@@ -279,7 +279,7 @@ public class HoofprintScreen extends Screen {
 		if (inspectMode && landmark.contains(LandmarkComponentTypes.NAME)) {
 			// Draw Text Below Marker
 			int textX = -this.textRenderer.getWidth(landmark.get(LandmarkComponentTypes.NAME)) / 2;
-			context.drawText(this.textRenderer, landmark.get(LandmarkComponentTypes.NAME), textX, 20, 0xFFFFFF, true);
+			context.drawText(this.textRenderer, landmark.get(LandmarkComponentTypes.NAME), textX, 12, 0xFFFFFF, true);
 		}
 		context.getMatrices().pop();
 	}
@@ -409,7 +409,7 @@ public class HoofprintScreen extends Screen {
 		switch (keyCode) {
 			case GLFW.GLFW_KEY_LEFT_ALT -> inspectMode = true;
 			case GLFW.GLFW_KEY_H -> hideDecorations = !hideDecorations;
-			case GLFW.GLFW_KEY_PAGE_DOWN, GLFW.GLFW_KEY_PAGE_UP -> caveMode = !caveMode;
+			case GLFW.GLFW_KEY_TAB -> caveMode = !caveMode;
 			case GLFW.GLFW_KEY_UP -> centreZ--;
 			case GLFW.GLFW_KEY_DOWN -> centreZ++;
 			case GLFW.GLFW_KEY_LEFT -> centreX--;
@@ -427,13 +427,12 @@ public class HoofprintScreen extends Screen {
 		return true;
 	}
 
-	private boolean saveLandmark() {
-		if (editingLandmark == null || client == null || client.world == null || client.player == null || !WorldLandmarks.canModify(editingLandmark.owner(), client.world, null)) return true;
+	private void saveLandmark() {
+		if (editingLandmark == null || client == null || client.world == null || client.player == null || !WorldLandmarks.canModify(editingLandmark.owner(), client.world, null)) return;
 		WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
-		if (landmarks == null) return true;
+		if (landmarks == null) return;
 		landmarks.put(client.world, editingLandmark);
 		editingLandmark = null;
-		return false;
 	}
 
 	@Override
