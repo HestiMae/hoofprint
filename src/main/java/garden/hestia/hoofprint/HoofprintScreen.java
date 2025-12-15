@@ -18,10 +18,15 @@ import net.minecraft.block.Block;
 import net.minecraft.block.MapColor;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.sound.BlockSoundGroup;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.DyeColor;
 import net.minecraft.util.Formatting;
@@ -43,6 +48,7 @@ import java.util.function.Consumer;
 
 public class HoofprintScreen extends Screen {
 	public static final Identifier BACKGROUND = Identifier.of("hoofprint", "textures/map/map_background_checkerboard.png");
+	public static final Identifier BACKGROUND_DARK = Identifier.of("hoofprint", "textures/map/map_background_checkerboard_dark.png");
 	HoofprintMapStorage mapStorage;
 	private double centreX = 0;
 	private double centreZ = 0;
@@ -88,7 +94,7 @@ public class HoofprintScreen extends Screen {
 		if (Hoofprint.CONFIG.renderBackground && (areaX2 - areaX1) > 0 && (areaY2 - areaY1) > 0) {
 			context.getMatrices().push();
 			context.getMatrices().translate(areaX1, areaY1, 0);
-			context.drawNineSlicedTexture(BACKGROUND, 0, 0, (int) (areaX2 - areaX1), (int) (areaY2 - areaY1), 18, 256, 256, 0, 0);
+			context.drawNineSlicedTexture(caveMode ? BACKGROUND_DARK : BACKGROUND, 0, 0, (int) (areaX2 - areaX1), (int) (areaY2 - areaY1), 18, 256, 256, 0, 0);
 			context.getMatrices().pop();
 		}
 
@@ -182,14 +188,14 @@ public class HoofprintScreen extends Screen {
 			context.getMatrices().translate(hoveredScreenX, hoveredScreenY, 0);
 			if (inspectMode) {
 				List<Text> tooltipLines = new ArrayList<>();
-				if (!ifTerrainUnderCursor(((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
+				if (!ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
 					tooltipLines.add(Text.of("x: %d, y: %d, z: %d".formatted(hoveredWorldX, y, hoveredWorldZ)));
 					tooltipLines.add(block.getName());
 					if (biomeId != null) tooltipLines.add(Text.translatable("biome.%s.%s".formatted(biomeId.getNamespace(), biomeId.getPath())));
 					if (waterDepth > 0) tooltipLines.add(Text.of("Water: %d blocks".formatted(waterDepth)));
 					if (lightLevel > 0) tooltipLines.add(Text.of("Block Light: %d".formatted(lightLevel)));
 					if (waterLight > 0) tooltipLines.add(Text.of("Water Surface Light: %d".formatted(waterLight)));
-				}))) {
+				})) {
 					tooltipLines.add(Text.of("x: %d, z: %d".formatted(hoveredWorldX, hoveredWorldZ)));
 				}
 				context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
@@ -318,6 +324,7 @@ public class HoofprintScreen extends Screen {
 		this.centreX = client.player.getBlockX();
 		this.centreZ = client.player.getBlockZ();
 		this.guiScale = (int) client.getWindow().getScaleFactor();
+		client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_BOOK_PAGE_TURN, caveMode ? 0.8F : 1.0F));
 		super.init();
 	}
 
@@ -329,6 +336,7 @@ public class HoofprintScreen extends Screen {
 
 	@Override
 	public boolean shouldPause() {
+		// todo. move bake ticking off-thread and remove this
 		return false;
 	}
 
@@ -384,16 +392,27 @@ public class HoofprintScreen extends Screen {
 	}
 
 	@Override
+	public void close() {
+		client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_BOOK_PAGE_TURN, caveMode ? 0.8F : 1.0F));
+		super.close();
+	}
+
+	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
 		if (editingLandmark != null) {
 			switch (keyCode) {
 				case GLFW.GLFW_KEY_ESCAPE -> { // discard landmark
+					client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT, 2.0F));
 					editingLandmark = null;
 				}
 				case GLFW.GLFW_KEY_ENTER -> { // save landmark
+					client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT, 1.0F));
 					saveLandmark();
 				}
-				case GLFW.GLFW_KEY_TAB, GLFW.GLFW_KEY_DOWN, GLFW.GLFW_KEY_UP -> editingStyle = !editingStyle;
+				case GLFW.GLFW_KEY_TAB, GLFW.GLFW_KEY_DOWN, GLFW.GLFW_KEY_UP -> {
+					client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 2.0F));
+					editingStyle = !editingStyle;
+				}
 				case GLFW.GLFW_KEY_BACKSPACE -> {
 					StringBuilder editing = editingStyle ? landmarkStyle : landmarkName;
 					if (!editing.isEmpty()) editing.deleteCharAt((editingStyle ? landmarkStyle : landmarkName).length() - 1);
@@ -410,21 +429,36 @@ public class HoofprintScreen extends Screen {
 			return true;
 		}
 		switch (keyCode) {
-			case GLFW.GLFW_KEY_LEFT_ALT -> inspectMode = true;
-			case GLFW.GLFW_KEY_H -> hideDecorations = !hideDecorations;
-			case GLFW.GLFW_KEY_TAB -> caveMode = !caveMode;
+			case GLFW.GLFW_KEY_LEFT_ALT -> {
+				if (!inspectMode) {
+					client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_SPYGLASS_USE, 1.0F));
+					inspectMode = true;
+				}
+			}
+			case GLFW.GLFW_KEY_H -> {
+				client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_BRUSH_BRUSHING_GENERIC, 1.0F));
+				hideDecorations = !hideDecorations;
+			}
+			case GLFW.GLFW_KEY_TAB -> {
+				caveMode = !caveMode;
+				client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_BOOK_PAGE_TURN, caveMode ? 0.8F : 1.0F));
+			}
 			case GLFW.GLFW_KEY_UP -> centreZ--;
 			case GLFW.GLFW_KEY_DOWN -> centreZ++;
 			case GLFW.GLFW_KEY_LEFT -> centreX--;
 			case GLFW.GLFW_KEY_RIGHT -> centreX++;
 			case GLFW.GLFW_KEY_SPACE -> {
-				this.centreX = client.player.getBlockX();
-				this.centreZ = client.player.getBlockZ();
+				if (this.centreX != client.player.getBlockX() || this.centreZ != client.player.getBlockZ()) {
+					client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.BLOCK_STONE_BUTTON_CLICK_OFF, 1.0F));
+					this.centreX = client.player.getBlockX();
+					this.centreZ = client.player.getBlockZ();
+				}
 			}
 			case GLFW.GLFW_KEY_DELETE -> {
 				if (client == null || client.world == null || client.player == null || hoveredLandmark == null || !WorldLandmarks.canModify (hoveredLandmark.owner(), client.world, null)) return true;
 				WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
 				if (landmarks == null) return true;
+				client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.BLOCK_LAVA_POP, 2.0F));
 				landmarks.remove(client.world, hoveredLandmark.owner(), hoveredLandmark.id());
 			}
 			default -> {
@@ -445,7 +479,10 @@ public class HoofprintScreen extends Screen {
 	@Override
 	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
 		switch (keyCode) {
-			case GLFW.GLFW_KEY_LEFT_ALT -> inspectMode = false;
+			case GLFW.GLFW_KEY_LEFT_ALT -> {
+				client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_SPYGLASS_USE, 0.8F));
+				inspectMode = false;
+			}
 			default -> {
 				return super.keyReleased(keyCode, scanCode, modifiers);
 			}
@@ -455,7 +492,16 @@ public class HoofprintScreen extends Screen {
 
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
-		if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
+		if (button == GLFW.GLFW_MOUSE_BUTTON_3) { // easter egg: knock
+			ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
+				try {
+					BlockSoundGroup group = block.getSoundGroup(null);
+					client.getSoundManager().play(PositionedSoundInstance.master(group.getHitSound(), 1.0F, 0.3F));
+				} catch (NullPointerException e) {
+					// ignored
+				}
+			});
+		} else if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
 			if (editingLandmark != null) { // discard
 				editingLandmark = null;
 				return true;
@@ -474,9 +520,11 @@ public class HoofprintScreen extends Screen {
 			}
 			landmarkName = new StringBuilder(editingLandmark.getOrDefault(LandmarkComponentTypes.NAME, Text.empty()).getString());
 			landmarkStyle = new StringBuilder(editingLandmark.contains(LandmarkComponentTypes.STACK) ? Registries.ITEM.getId(editingLandmark.get(LandmarkComponentTypes.STACK).getItem()).toString().replace("minecraft:", "") :
-				editingLandmark.contains(LandmarkComponentTypes.COLOR) ? Optional.ofNullable(DyeColor.byFireworkColor(editingLandmark.get(LandmarkComponentTypes.COLOR))).map(d -> d.getName().toLowerCase()).orElse("#" + Integer.toHexString(editingLandmark.get(LandmarkComponentTypes.COLOR))) : "white");
+				editingLandmark.contains(LandmarkComponentTypes.COLOR) ? Optional.ofNullable(DyeColor.byFireworkColor(editingLandmark.get(LandmarkComponentTypes.COLOR))).map(d -> d.getName().toLowerCase()).orElse("#" + Integer.toHexString(0xFFFFFF & editingLandmark.get(LandmarkComponentTypes.COLOR)).toUpperCase()) : "white");
 			editingStyle = false;
 			updateEdited();
+			SoundEvent placeSound = Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK)).filter(s -> s.getItem() instanceof BlockItem).map(s -> ((BlockItem) s.getItem()).getBlock().getSoundGroup(null).getPlaceSound()).orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
+			client.getSoundManager().play(PositionedSoundInstance.master(placeSound, 1.2F));
 			if (hasShiftDown()) saveLandmark();
 			return true;
 		}

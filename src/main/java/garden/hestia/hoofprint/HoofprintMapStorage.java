@@ -116,8 +116,8 @@ public class HoofprintMapStorage {
 		LayerSummary.Raw[][] chunkBelowSummaries = new LayerSummary.Raw[34][34];
 
 		for (LayerConfiguration config : List.of(
-			new LayerConfiguration(chunkSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, regionTextures), (s, x, z) -> s == null ? null : s.toSingleLayer(null, maxY, world.getHeight())),
-			new LayerConfiguration(chunkBelowSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, caveRegionTextures), (s, x, z) -> this.belowLayerUsingCache(chunkSummaries, s, x, z, maxY, world.getHeight()))
+			new LayerConfiguration(chunkSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, regionTextures), (s, x, z) -> s == null ? null : s.toSingleLayer(null, maxY, world.getHeight()), maxY == null),
+			new LayerConfiguration(chunkBelowSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, caveRegionTextures), (s, x, z) -> this.belowLayerUsingCache(chunkSummaries, s, x, z, maxY, world.getHeight()), false)
 		)) {
 			for (int chunkX = 0; chunkX < 32; chunkX++) {
 				for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
@@ -143,7 +143,7 @@ public class HoofprintMapStorage {
 					}
 					RegistryPalette<Block>.ValueView blockPalette = region.getBlockPalette();
 					if (config.cache[chunkX + 1][chunkZ + 1] == null || blockPalette == null) continue;
-					int[][] colors = this.getColors(config.cache, config.waterColors, config.foliageColors, chunkX + 1, chunkZ + 1, blockPalette, lightMap);
+					int[][] colors = this.getColors(config.cache, config.waterColors, config.foliageColors, chunkX + 1, chunkZ + 1, blockPalette, lightMap, config.skyLight);
 					for (int x = 0; x < colors.length; x++) {
 						for (int z = 0; z < colors[x].length; z++) {
 							config.texture.getImage().setColor(16 * chunkX + x, 16 * chunkZ + z, ColorUtil.argbToABGR(colors[x][z]));
@@ -161,7 +161,7 @@ public class HoofprintMapStorage {
 		return s.toSingleLayerBelow(null, cache[x + 1][z + 1].depths(), worldHeight);
 	}
 
-	record LayerConfiguration(LayerSummary.Raw[][] cache, int[][] waterColors, int[][] foliageColors, NativeImageBackedTexture texture, Function3<ChunkSummary, Integer, Integer, LayerSummary.Raw> flattener) {}
+	record LayerConfiguration(LayerSummary.Raw[][] cache, int[][] waterColors, int[][] foliageColors, NativeImageBackedTexture texture, Function3<ChunkSummary, Integer, Integer, LayerSummary.Raw> flattener, boolean skyLight) {}
 
 	NativeImageBackedTexture getNativeTexture(RegionPos rPos, Map<RegionPos, Identifier> regionTextures) {
 		Identifier textureId = regionTextures.computeIfAbsent(rPos, r -> MinecraftClient.getInstance().getTextureManager().registerDynamicTexture(TEXTURE_PREFIX, new NativeImageBackedTexture(512, 512, true)));
@@ -171,7 +171,7 @@ public class HoofprintMapStorage {
 		return terrainTexture;
 	}
 
-	int[][] getColors(LayerSummary.Raw[][] chunks, int[][] waterColors, int[][] foliageColors, int chunkX, int chunkZ, RegistryPalette<Block>.ValueView blockPalette, ConstantLightMap lightMap) {
+	int[][] getColors(LayerSummary.Raw[][] chunks, int[][] waterColors, int[][] foliageColors, int chunkX, int chunkZ, RegistryPalette<Block>.ValueView blockPalette, ConstantLightMap lightMap, boolean hasSky) {
 		LayerSummary.Raw layer = chunks[chunkX][chunkZ];
 		LayerSummary.Raw aboveLayer = chunks[chunkX][chunkZ - 1];
 		int[][] colors = new int[16][16];
@@ -208,14 +208,14 @@ public class HoofprintMapStorage {
 				}
 				if (Hoofprint.CONFIG.lighting && (Hoofprint.CONFIG.transparentWater || layer.waterDepths()[i] == 0)) {
 					int blockLight = layer.lightLevels()[i];
-					int skyLight = Math.max(ColorUtil.SKY_LIGHT - layer.waterDepths()[i], 0);
+					int skyLight = hasSky ? Math.max(ColorUtil.SKY_LIGHT - layer.waterDepths()[i], 0) : Hoofprint.CONFIG.ambientSkyLight;
 					color = ColorUtil.tint(color, lightMap.getMap()[skyLight][blockLight]);
 				}
 				if (Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0) {
 					waterColor = ColorUtil.tint(WATER_TEXTURE_COLOR, ColorUtil.blendColors(waterColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.blendRadius));
 					if (Hoofprint.CONFIG.lighting) {
 						int blockLight = layer.waterLights()[i];
-						int skyLight = ColorUtil.SKY_LIGHT;
+						int skyLight = hasSky ? ColorUtil.SKY_LIGHT : Hoofprint.CONFIG.ambientSkyLight;
 						waterColor = ColorUtil.tint(waterColor, lightMap.getMap()[skyLight][blockLight]);
 					}
 					color = ColorUtil.blend(color, waterColor, 0.6F);

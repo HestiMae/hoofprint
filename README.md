@@ -34,16 +34,16 @@ A minimalist client-side world map.<br/>
 
 Hoofprint's configuration can be edited in `config/hoofprint.toml`, or in-game using [McQoy](https://modrinth.com/mod/mcqoy). This includes:
 - Toggles for vanilla-style rendering (e.g. opaque water, no biome colors, no lighting)
-- Lightmap selection, allowing you to render the map as if it's night.
-- Dimension overrides for maximum Y (e.g. nether) and for lightmap.
-- Handling for the world border.
+- Lightmap selection, allowing you to render the map as if it's night
+- Dimension overrides for maximum Y (e.g. nether) and for lightmap
+- Handling for the world border
 
 ### Troubleshooting / Suggestions
 
-Hoofprint is a **clientside map frontend** for [Surveyor Map Framework](https://modrinth.com/mod/surveyor).<br/>
-It renders surveyor save data in a vanilla-enhanced style, and allows editing surveyor waypoints.<br/>
-Issues and suggestions regarding the screen, terrain, keybinds, and waypoint icons are [Hoofprint Issues](https://github.com/sisby-folk/antique-atlas/issues).<br/>
-Issues and suggestions regarding map sharing, explored map area, and automatic markers are [Surveyor Issues](https://github.com/sisby-folk/surveyor).
+Hoofprint is a **clientside map frontend** for [Surveyor Map Framework](https://modrinth.com/mod/surveyor)<br/>
+It renders surveyor save data in a vanilla-enhanced style, and allows editing surveyor waypoints<br/>
+Issues and suggestions regarding the screen, terrain, keybinds, and waypoint icons are [Hoofprint Issues](https://github.com/sisby-folk/antique-atlas/issues)<br/>
+Issues and suggestions regarding map sharing, explored map area, and automatic markers are [Surveyor Issues](https://github.com/sisby-folk/surveyor)
 
 ## Afterword
 
