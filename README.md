@@ -24,6 +24,7 @@ A minimalist clientside map frontend for Surveyor.<br/>
 - `Right Click` to edit the hovered waypoint, or place a new one
   - `TAB` to edit the waypoint style (accepts colors, item IDs, and #hex)
   - `ENTER` to save your changes, or `ESC` to discard them
+- `DEL` to remove the hovered waypoint
 - `H` to hide all map decorations
 - `ALT` to view info about the block under the cursor (also shows waypoint names)
 - `TAB` to view the cave layer
