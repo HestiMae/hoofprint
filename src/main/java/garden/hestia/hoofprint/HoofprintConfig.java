@@ -14,11 +14,11 @@ public class HoofprintConfig extends WrappedConfig {
 	public boolean lighting = true;
 	public boolean itemOutlines = true;
 	public boolean showOffline = true;
-	public boolean renderBorder = true;
-	public boolean renderOutsideBorder = true;
 	public boolean logMapBaking = false;
 	@IntegerRange(min = 0, max = 16)
 	public int blendRadius = 9;
+	@IntegerRange(min = 1, max = 200)
+	public int ticksPerRegion = 20;
 	public Map<String, Integer> dimensionMaxYValues = ValueMap.builder(0)
 		.put("minecraft:the_nether", 126)
 		.build();

@@ -29,7 +29,9 @@ import net.minecraft.world.gen.structure.Structure;
 
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -43,7 +45,7 @@ public class HoofprintMapStorage {
 	Map<RegionPos, Identifier> regionTextures = new ConcurrentHashMap<>();
 	Map<RegionPos, Identifier> caveRegionTextures = new ConcurrentHashMap<>();
 	Map<RegionPos, BitSet> terrainFilled = new ConcurrentHashMap<>();
-	Map<RegionPos, BitSet> terrainQueue = new ConcurrentHashMap<>();
+	Map<RegionPos, BitSet> terrainQueue = Collections.synchronizedMap(new LinkedHashMap<>());
 	Map<UUID, Map<Identifier, Landmark>> landmarks = new ConcurrentHashMap<>();
 
 	public static HoofprintMapStorage get(RegistryKey<World> dim) {
@@ -55,7 +57,7 @@ public class HoofprintMapStorage {
 	}
 
 	public void worldLoad(ClientWorld world, WorldSummary summary, ClientPlayerEntity player, Map<RegionPos, BitSet> terrain, Multimap<RegistryKey<Structure>, ChunkPos> structures, Multimap<UUID, Identifier> landmarks) {
-		terrainUpdated(world, summary.terrain(), WorldTerrainSummary.toKeys(terrain));
+		terrainUpdated(world, summary.terrain(), WorldTerrainSummary.toKeys(terrain, player.getChunkPos()));
 		landmarksAdded(world, summary.landmarks(), landmarks);
 	}
 
@@ -80,6 +82,7 @@ public class HoofprintMapStorage {
 	}
 
 	public void tick(World world) {
+		if (world.getTime() % Hoofprint.CONFIG.ticksPerRegion != 0) return;
 		RegionPos rPos = terrainQueue.keySet().stream().findFirst().orElse(null);
 		if (rPos != null) {
 			bake(world, rPos, terrainQueue.remove(rPos));
