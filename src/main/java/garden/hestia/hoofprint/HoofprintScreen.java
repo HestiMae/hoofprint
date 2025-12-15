@@ -1,11 +1,13 @@
 package garden.hestia.hoofprint;
 
+import com.google.common.primitives.Ints;
 import com.mojang.blaze3d.systems.RenderSystem;
 import folk.sisby.surveyor.PlayerSummary;
 import folk.sisby.surveyor.WorldSummary;
 import folk.sisby.surveyor.client.SurveyorClient;
 import folk.sisby.surveyor.landmark.Landmark;
 import folk.sisby.surveyor.landmark.WorldLandmarks;
+import folk.sisby.surveyor.landmark.component.LandmarkComponentMap;
 import folk.sisby.surveyor.landmark.component.LandmarkComponentTypes;
 import folk.sisby.surveyor.terrain.ChunkSummary;
 import folk.sisby.surveyor.terrain.LayerSummary;
@@ -16,9 +18,12 @@ import net.minecraft.block.Block;
 import net.minecraft.block.MapColor;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.text.Text;
+import net.minecraft.util.DyeColor;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.*;
@@ -31,14 +36,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public class HoofprintScreen extends Screen {
 	HoofprintMapStorage mapStorage;
 	private double centreX = 0;
 	private double centreZ = 0;
 	private Landmark hoveredLandmark = null;
+	private Landmark editingLandmark = null;
+	private StringBuilder landmarkName = null;
+	private StringBuilder landmarkStyle = null;
+	private boolean editingStyle = false;
+	private boolean styleValid = false;
 	private double hoveredScreenX = 0;
 	private double hoveredScreenY = 0;
 	private int hoveredWorldX = 0;
@@ -47,6 +59,8 @@ public class HoofprintScreen extends Screen {
 	private boolean inspectMode = false;
 	private boolean caveMode = false;
 	private boolean hideDecorations = false;
+	private PlayerSummary hoveredPlayer;
+	private int cursorFrame = 0;
 
 	public HoofprintScreen() {
 		super(Text.of("Hoofprint World Map"));
@@ -104,6 +118,7 @@ public class HoofprintScreen extends Screen {
 		double bestDistance = Double.MAX_VALUE;
 		for (Map<Identifier, Landmark> map : this.mapStorage.landmarks.values()) {
 			for (Landmark landmark : map.values()) {
+				if (landmark == editingLandmark) continue;
 				BlockPos pos = landmark.get(LandmarkComponentTypes.POS);
 				if (hideDecorations) continue;
 				if (pos == null) {
@@ -112,7 +127,7 @@ public class HoofprintScreen extends Screen {
 						double screenX = renderToScreen(worldXToRenderX(chunk.getStartX()));
 						double screenY = renderToScreen(worldZToRenderY(chunk.getStartZ()));
 						boolean isInside = hoveredScreenX >= screenX && hoveredScreenX < screenX + 16 * scaleFactor && hoveredScreenY >= screenY && hoveredScreenY < screenY + 16 * scaleFactor;
-						if (!hasShiftDown() && isInside && 10 < bestDistance) {
+						if (!inspectMode && isInside && 10 < bestDistance) {
 							hoveredLandmark = landmark;
 							bestDistance = 10;
 						}
@@ -122,7 +137,7 @@ public class HoofprintScreen extends Screen {
 				double landmarkCenterX = renderToScreen(worldXToRenderX(pos.getX()));
 				double landmarkCenterY = renderToScreen(worldZToRenderY(pos.getZ()));
 				double mouseDistance = (hoveredScreenX - landmarkCenterX) * (hoveredScreenX - landmarkCenterX) + (hoveredScreenY - landmarkCenterY) * (hoveredScreenY - landmarkCenterY);
-				if (!hasShiftDown() && mouseDistance < (6 * 6 * client.getWindow().getScaleFactor()) && mouseDistance < bestDistance) {
+				if (!inspectMode && mouseDistance < (6 * 6 * client.getWindow().getScaleFactor()) && mouseDistance < bestDistance) {
 					hoveredLandmark = landmark;
 					bestDistance = mouseDistance;
 				}
@@ -131,7 +146,7 @@ public class HoofprintScreen extends Screen {
 
 		RegistryKey<World> dim = client.world != null ? client.world.getRegistryKey() : null;
 
-		PlayerSummary hoveredPlayer = null;
+		hoveredPlayer = null;
 		for (PlayerSummary player : SurveyorClient.getFriends().values()) {
 			if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline) || hideDecorations) continue;
 			double playerCenterX = renderToScreen(worldXToRenderX(player.pos().getX()));
@@ -144,113 +159,129 @@ public class HoofprintScreen extends Screen {
 			}
 		}
 
-		for (Map.Entry<UUID, PlayerSummary> e : SurveyorClient.getFriends().entrySet()) {
-			UUID uuid = e.getKey();
-			PlayerSummary player = e.getValue();
-			if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline) || hideDecorations) continue;
-			double playerScreenX = renderToScreen(worldXToRenderX(player.pos().getX()));
-			double playerScreenY = renderToScreen(worldZToRenderY(player.pos().getZ()));
-			boolean mouseOver = player == hoveredPlayer;
+		SurveyorClient.getFriends().forEach((uuid, player) -> renderPlayer(context, player, dim, uuid));
+
+		this.mapStorage.landmarks.values().stream().flatMap(map -> map.values().stream()).filter(landmark -> editingLandmark == null || !landmark.id().equals(editingLandmark.id())).forEach(landmark -> renderLandmark(context, landmark, scaleFactor));
+
+		// Tooltips
+		if (editingLandmark != null) {
+			renderLandmark(context, editingLandmark, scaleFactor);
+			double landmarkScreenX = renderToScreen(worldXToRenderX(editingLandmark.get(LandmarkComponentTypes.POS).getX()));
+			double landmarkScreenY = renderToScreen(worldZToRenderY(editingLandmark.get(LandmarkComponentTypes.POS).getZ()));
+			String cursor = List.of("|", "/", "-", "\\").get(cursorFrame / 10);
 			context.getMatrices().push();
-			context.getMatrices().translate(playerScreenX, playerScreenY, 0);
-			context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + player.yaw()));
-			context.getMatrices().translate(-2.5, -3.5, 0);
-			boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
-			float tint = !player.online() ? 0.3f : mouseOver ? 0.8f : 1f;
-			RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), tint, tint * (friend ? 0.3f : 1.0f), 1.0F);
-			context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, 2, 0, 5, 7, 128, 128);
-			RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+			context.getMatrices().translate(landmarkScreenX, landmarkScreenY, 0);
+			context.drawTooltip(this.textRenderer, List.of(
+				Text.empty().append(Text.literal(landmarkName.toString())).append(Text.literal(editingStyle ? "" : cursor).formatted(Formatting.GRAY)),
+				Text.empty().append(Text.literal(landmarkStyle.toString()).formatted(styleValid ? Formatting.WHITE : Formatting.RED)).append(Text.literal(editingStyle ? cursor : "").formatted(Formatting.GRAY))
+			), 0, 0);
+			context.getMatrices().pop();
+		} else {
+			context.getMatrices().push();
+			context.getMatrices().translate(hoveredScreenX, hoveredScreenY, 0);
+			if (hoveredPlayer != null && hoveredPlayer.username() != null) {
+				context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), 0, 0);
+			} else if (hoveredLandmark != null) {
+				List<Text> tooltipLines = new ArrayList<>();
+				if (hoveredLandmark.contains(LandmarkComponentTypes.NAME)) tooltipLines.add(hoveredLandmark.get(LandmarkComponentTypes.NAME));
+				if (hoveredLandmark.contains(LandmarkComponentTypes.LORE)) tooltipLines.addAll(hoveredLandmark.get(LandmarkComponentTypes.LORE).stream().map(t -> t.copy().formatted(Formatting.GRAY)).toList());
+				if (!tooltipLines.isEmpty()) {
+					context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
+				}
+			} else if (inspectMode) {
+				List<Text> tooltipLines = new ArrayList<>();
+				if (!ifTerrainUnderCursor(((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
+					tooltipLines.add(Text.of("x: %d, y: %d, z: %d".formatted(hoveredWorldX, y, hoveredWorldZ)));
+					tooltipLines.add(block.getName());
+					if (biomeId != null) tooltipLines.add(Text.translatable("biome.%s.%s".formatted(biomeId.getNamespace(), biomeId.getPath())));
+					if (waterDepth > 0) tooltipLines.add(Text.of("Water: %d blocks".formatted(waterDepth)));
+					if (lightLevel > 0) tooltipLines.add(Text.of("Block Light: %d".formatted(lightLevel)));
+					if (waterLight > 0) tooltipLines.add(Text.of("Water Surface Light: %d".formatted(waterLight)));
+				}))) {
+					tooltipLines.add(Text.of("x: %d, z: %d".formatted(hoveredWorldX, hoveredWorldZ)));
+				}
+				context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
+			}
 			context.getMatrices().pop();
 		}
 
-		for (Map<Identifier, Landmark> map : this.mapStorage.landmarks.values()) {
-			for (Landmark landmark : map.values()) {
-				BlockPos pos = landmark.get(LandmarkComponentTypes.POS);
-				if (hideDecorations) continue;
-				if (pos == null) {
-					Set<ChunkPos> chunks = RegionPos.regionsToChunks(landmark.getOrDefault(LandmarkComponentTypes.CHUNKS, new HashMap<>()));
-					context.getMatrices().push();
-					context.getMatrices().scale(scaleFactor, scaleFactor, 1.0f);
-					for (ChunkPos chunk : chunks) {
-						context.getMatrices().push();
-						context.getMatrices().translate(worldXToRenderX(chunk.getStartX()), worldZToRenderY(chunk.getStartZ()), 0);
-						int color = 0xFF_000000 | ColorUtil.applyBrightnessRGB(hoveredLandmark == landmark ? ColorUtil.Brightness.HIGH : ColorUtil.Brightness.NORMAL, landmark.getOrDefault(LandmarkComponentTypes.COLOR, 0xFFFFFF));
-						context.fill(0, 0, 16, 16, 0x44FFFFFF & color);
-						if (!chunks.contains(new ChunkPos(chunk.x - 1, chunk.z))) context.fill(0, 0, 1, 16, color);
-						if (!chunks.contains(new ChunkPos(chunk.x , chunk.z - 1))) context.fill(0, 0, 16, 1, color);
-						if (!chunks.contains(new ChunkPos(chunk.x + 1, chunk.z))) context.fill(15, 0, 16, 16, color);
-						if (!chunks.contains(new ChunkPos(chunk.x, chunk.z + 1))) context.fill(0, 15, 16, 16, color);
-						context.getMatrices().pop();
-					}
-					context.getMatrices().pop();
-					continue;
-				}
-				double landmarkScreenX = renderToScreen(worldXToRenderX(pos.getX()));
-				double landmarkScreenY = renderToScreen(worldZToRenderY(pos.getZ()));
-				float[] landmarkColors = (landmark.contains(LandmarkComponentTypes.COLOR) && !landmark.contains(LandmarkComponentTypes.STACK)) ? ColorUtil.getColorFromArgb(landmark.get(LandmarkComponentTypes.COLOR)) : new float[]{1.0f, 1.0f, 1.0f};
-				boolean mouseOver = landmark == hoveredLandmark;
-				float tint = mouseOver ? 0.7F : 1.0F;
+		super.render(context, mouseX, mouseY, delta);
+	}
+
+	private void renderPlayer(DrawContext context, PlayerSummary player, RegistryKey<World> dim, UUID uuid) {
+		if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline) || hideDecorations) return;
+		double playerScreenX = renderToScreen(worldXToRenderX(player.pos().getX()));
+		double playerScreenY = renderToScreen(worldZToRenderY(player.pos().getZ()));
+		boolean mouseOver = player == hoveredPlayer;
+		context.getMatrices().push();
+		context.getMatrices().translate(playerScreenX, playerScreenY, 0);
+		context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + player.yaw()));
+		context.getMatrices().translate(-2.5, -3.5, 0);
+		boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
+		float tint = !player.online() ? 0.3f : mouseOver ? 0.8f : 1f;
+		RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), tint, tint * (friend ? 0.3f : 1.0f), 1.0F);
+		context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, 2, 0, 5, 7, 128, 128);
+		RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+		context.getMatrices().pop();
+	}
+
+	private void renderLandmark(DrawContext context, Landmark landmark, float scaleFactor) {
+		BlockPos pos = landmark.get(LandmarkComponentTypes.POS);
+		if (hideDecorations) return;
+		if (pos == null) {
+			Set<ChunkPos> chunks = RegionPos.regionsToChunks(landmark.getOrDefault(LandmarkComponentTypes.CHUNKS, new HashMap<>()));
+			context.getMatrices().push();
+			context.getMatrices().scale(scaleFactor, scaleFactor, 1.0f);
+			for (ChunkPos chunk : chunks) {
 				context.getMatrices().push();
-				context.getMatrices().translate(landmarkScreenX, landmarkScreenY, 0);
-				if (Hoofprint.CONFIG.itemOutlines && landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
-					RenderSystem.setShaderColor(0, 0, 0, 1);
-					ItemStack stack = landmark.get(LandmarkComponentTypes.STACK);
-					context.getMatrices().push();
-					context.getMatrices().translate(0, 0, -5);
-					context.drawItem(stack, -9, -9);
-					context.drawItem(stack, -9, -8);
-					context.drawItem(stack, -9, -7);
-					context.drawItem(stack, -8, -9);
-					context.drawItem(stack, -8, -7);
-					context.drawItem(stack, -7, -9);
-					context.drawItem(stack, -7, -8);
-					context.drawItem(stack, -7, -7);
-					context.getMatrices().pop();
-				}
-				RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
-				if (landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
-					ItemStack stack = landmark.get(LandmarkComponentTypes.STACK);
-					context.drawItem(stack, -8, -8);
-				} else {
-					context.drawTexture(new Identifier("textures/map/map_icons.png"), -4, -8, 8, 8, 80, 0, 8, 8, 128, 128);
-				}
-				RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-				if (hasShiftDown() && landmark.contains(LandmarkComponentTypes.NAME)) {
-					// Draw Text Below Marker
-					int textX = -this.textRenderer.getWidth(landmark.get(LandmarkComponentTypes.NAME)) / 2;
-					context.drawText(this.textRenderer, landmark.get(LandmarkComponentTypes.NAME), textX, 0, 0xFFFFFF, true);
-				}
+				context.getMatrices().translate(worldXToRenderX(chunk.getStartX()), worldZToRenderY(chunk.getStartZ()), 0);
+				int color = 0xFF_000000 | ColorUtil.applyBrightnessRGB(hoveredLandmark == landmark ? ColorUtil.Brightness.HIGH : ColorUtil.Brightness.NORMAL, landmark.getOrDefault(LandmarkComponentTypes.COLOR, 0xFFFFFF));
+				context.fill(0, 0, 16, 16, 0x44FFFFFF & color);
+				if (!chunks.contains(new ChunkPos(chunk.x - 1, chunk.z))) context.fill(0, 0, 1, 16, color);
+				if (!chunks.contains(new ChunkPos(chunk.x , chunk.z - 1))) context.fill(0, 0, 16, 1, color);
+				if (!chunks.contains(new ChunkPos(chunk.x + 1, chunk.z))) context.fill(15, 0, 16, 16, color);
+				if (!chunks.contains(new ChunkPos(chunk.x, chunk.z + 1))) context.fill(0, 15, 16, 16, color);
 				context.getMatrices().pop();
 			}
+			context.getMatrices().pop();
+			return;
 		}
-
+		double landmarkScreenX = renderToScreen(worldXToRenderX(pos.getX()));
+		double landmarkScreenY = renderToScreen(worldZToRenderY(pos.getZ()));
+		float[] landmarkColors = (landmark.contains(LandmarkComponentTypes.COLOR) && !landmark.contains(LandmarkComponentTypes.STACK)) ? ColorUtil.getColorFromArgb(landmark.get(LandmarkComponentTypes.COLOR)) : new float[]{1.0f, 1.0f, 1.0f};
+		boolean mouseOver = landmark == hoveredLandmark;
+		float tint = mouseOver ? 0.7F : 1.0F;
 		context.getMatrices().push();
-		context.getMatrices().translate(hoveredScreenX, hoveredScreenY, 0);
-		if (hoveredPlayer != null && hoveredPlayer.username() != null) {
-			context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), 0, 0);
-		} else if (hoveredLandmark != null) {
-			List<Text> tooltipLines = new ArrayList<>();
-			if (hoveredLandmark.contains(LandmarkComponentTypes.NAME)) tooltipLines.add(hoveredLandmark.get(LandmarkComponentTypes.NAME));
-			if (hoveredLandmark.contains(LandmarkComponentTypes.LORE)) tooltipLines.addAll(hoveredLandmark.get(LandmarkComponentTypes.LORE).stream().map(t -> t.copy().formatted(Formatting.GRAY)).toList());
-			if (!tooltipLines.isEmpty()) {
-				context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
-			}
-		} else if (inspectMode) {
-			List<Text> tooltipLines = new ArrayList<>();
-			if (!ifTerrainUnderCursor(((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
-				tooltipLines.add(Text.of("x: %d, y: %d, z: %d".formatted(hoveredWorldX, y, hoveredWorldZ)));
-				tooltipLines.add(block.getName());
-				if (biomeId != null) tooltipLines.add(Text.translatable("biome.%s.%s".formatted(biomeId.getNamespace(), biomeId.getPath())));
-				if (waterDepth > 0) tooltipLines.add(Text.of("Water: %d blocks".formatted(waterDepth)));
-				if (lightLevel > 0) tooltipLines.add(Text.of("Block Light: %d".formatted(lightLevel)));
-			}))) {
-				tooltipLines.add(Text.of("x: %d, z: %d".formatted(hoveredWorldX, hoveredWorldZ)));
-			}
-			context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
+		context.getMatrices().translate(landmarkScreenX, landmarkScreenY, 0);
+		if (Hoofprint.CONFIG.itemOutlines && landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
+			RenderSystem.setShaderColor(0, 0, 0, 1);
+			ItemStack stack = landmark.get(LandmarkComponentTypes.STACK);
+			context.getMatrices().push();
+			context.getMatrices().translate(0, 0, -5);
+			context.drawItem(stack, -9, -9);
+			context.drawItem(stack, -9, -8);
+			context.drawItem(stack, -9, -7);
+			context.drawItem(stack, -8, -9);
+			context.drawItem(stack, -8, -7);
+			context.drawItem(stack, -7, -9);
+			context.drawItem(stack, -7, -8);
+			context.drawItem(stack, -7, -7);
+			context.getMatrices().pop();
+		}
+		RenderSystem.setShaderColor(landmarkColors[0] * tint, landmarkColors[1] * tint, landmarkColors[2] * tint, 1.0F);
+		if (landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
+			ItemStack stack = landmark.get(LandmarkComponentTypes.STACK);
+			context.drawItem(stack, -8, -8);
+		} else {
+			context.drawTexture(new Identifier("textures/map/map_icons.png"), -4, -8, 8, 8, 80, 0, 8, 8, 128, 128);
+		}
+		RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+		if (inspectMode && landmark.contains(LandmarkComponentTypes.NAME)) {
+			// Draw Text Below Marker
+			int textX = -this.textRenderer.getWidth(landmark.get(LandmarkComponentTypes.NAME)) / 2;
+			context.drawText(this.textRenderer, landmark.get(LandmarkComponentTypes.NAME), textX, 20, 0xFFFFFF, true);
 		}
 		context.getMatrices().pop();
-
-		super.render(context, mouseX, mouseY, delta);
 	}
 
 	interface FloorConsumer {
@@ -266,6 +297,7 @@ public class HoofprintScreen extends Screen {
 		ChunkSummary summary = terrain.get(cp);
 		if (summary == null) return false;
 		LayerSummary.Raw layer = summary.toSingleLayer(null, maxY, client.world.getHeight());
+		if (caveMode) layer = layer == null ? null : summary.toSingleLayerBelow(null, layer.depths(), client.world.getHeight());
 		if (layer == null) return false;
 		int blockIndex = (hoveredWorldX - cp.getStartX()) * 16 + (hoveredWorldZ - cp.getStartZ());
 		Block block = terrain.getBlockPalette(cp).get(layer.blocks()[blockIndex]);
@@ -287,18 +319,95 @@ public class HoofprintScreen extends Screen {
 	}
 
 	@Override
+	public void tick() {
+		cursorFrame = (cursorFrame + 1) % 40;
+		super.tick();
+	}
+
+	@Override
 	public boolean shouldPause() {
 		return false;
 	}
 
+	public static Landmark copyLandmarkWith(Landmark landmark, Identifier id, Consumer<LandmarkComponentMap> modifier) {
+		LandmarkComponentMap copy = LandmarkComponentMap.builder().build();
+		landmark.components().keySet().forEach(t -> copy.set(t, landmark.components().get(t)));
+		modifier.accept(copy);
+		return new Landmark(landmark.owner(), id, copy);
+	}
+
+	private void updateEdited() {
+		String name = landmarkName.toString();
+		editingLandmark = copyLandmarkWith(editingLandmark, editingLandmark.id(), b -> {
+			if (name.isBlank()) {
+				b.remove(LandmarkComponentTypes.NAME);
+			} else {
+				b.set(LandmarkComponentTypes.NAME, Text.literal(name));
+			}
+		});
+		String style = landmarkStyle.toString();
+		DyeColor dye = DyeColor.CODEC.byId(style);
+		Item item = Registries.ITEM.getOrEmpty(Identifier.tryParse(style)).orElse(null);
+		Integer color = style.startsWith("#") ? Ints.tryParse(style.substring(1), 16) : null;
+		styleValid = true;
+		if (dye != null) {
+			editingLandmark = copyLandmarkWith(editingLandmark, editingLandmark.id(), b -> {
+				b.remove(LandmarkComponentTypes.STACK);
+				b.set(LandmarkComponentTypes.COLOR, dye.getFireworkColor());
+			});
+		} else if (item != null) {
+			editingLandmark = copyLandmarkWith(editingLandmark, editingLandmark.id(), b -> {
+				b.set(LandmarkComponentTypes.STACK, item.getDefaultStack().copy());
+				b.remove(LandmarkComponentTypes.COLOR);
+			});
+		} else if (color != null && color > 0 && color <= 0xFFFFFF) {
+			editingLandmark = copyLandmarkWith(editingLandmark, editingLandmark.id(), b -> {
+				b.remove(LandmarkComponentTypes.STACK);
+				b.set(LandmarkComponentTypes.COLOR, color);
+			});
+		} else {
+			styleValid = false;
+		}
+	}
+
+	@Override
+	public boolean charTyped(char chr, int modifiers) {
+		if (editingLandmark != null) {
+			StringBuilder editing = editingStyle ? landmarkStyle : landmarkName;
+			editing.append(chr);
+			updateEdited();
+		}
+		return super.charTyped(chr, modifiers);
+	}
+
 	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+		if (editingLandmark != null) {
+			switch (keyCode) {
+				case GLFW.GLFW_KEY_ESCAPE -> { // discard landmark
+					editingLandmark = null;
+				}
+				case GLFW.GLFW_KEY_ENTER -> { // save landmark
+					saveLandmark();
+				}
+				case GLFW.GLFW_KEY_TAB, GLFW.GLFW_KEY_DOWN, GLFW.GLFW_KEY_UP -> editingStyle = !editingStyle;
+				case GLFW.GLFW_KEY_BACKSPACE -> {
+					StringBuilder editing = editingStyle ? landmarkStyle : landmarkName;
+					if (!editing.isEmpty()) editing.deleteCharAt((editingStyle ? landmarkStyle : landmarkName).length() - 1);
+					updateEdited();
+				}
+				default -> {
+					return super.keyPressed(keyCode, scanCode, modifiers);
+				}
+			}
+			return true;
+		}
 		if (Hoofprint.OPEN_MAP.matchesKey(keyCode, scanCode)) {
 			close();
 			return true;
 		}
 		switch (keyCode) {
-			case GLFW.GLFW_KEY_I -> inspectMode = true;
+			case GLFW.GLFW_KEY_LEFT_ALT -> inspectMode = true;
 			case GLFW.GLFW_KEY_H -> hideDecorations = !hideDecorations;
 			case GLFW.GLFW_KEY_PAGE_DOWN, GLFW.GLFW_KEY_PAGE_UP -> caveMode = !caveMode;
 			case GLFW.GLFW_KEY_UP -> centreZ--;
@@ -306,26 +415,11 @@ public class HoofprintScreen extends Screen {
 			case GLFW.GLFW_KEY_LEFT -> centreX--;
 			case GLFW.GLFW_KEY_RIGHT -> centreX++;
 			case GLFW.GLFW_KEY_DELETE -> {
-				if (client == null || client.world == null || client.player == null) return true;
-				if (hoveredLandmark != null && (SurveyorClient.getClientUuid().equals(hoveredLandmark.owner()) || (hoveredLandmark.owner().equals(WorldLandmarks.GLOBAL) && client.player.hasPermissionLevel(2)))) {
-					WorldTerrainSummary terrain = WorldSummary.of(client.world).terrain();
-					WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
-					if (terrain == null || landmarks == null) return true;
-					landmarks.remove(client.world, hoveredLandmark.owner(), hoveredLandmark.id());
-				}
-			}
-			case GLFW.GLFW_KEY_INSERT -> ifTerrainUnderCursor(((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
+				if (client == null || client.world == null || client.player == null || hoveredLandmark == null || !WorldLandmarks.canModify (hoveredLandmark.owner(), client.world, null)) return true;
 				WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
-				if (landmarks == null) return;
-				landmarks.put(client.world, Landmark.createIncremental(landmarks, SurveyorClient.getClientUuid(), new Identifier("hoofprint", "block"), builder -> {
-						builder.add(LandmarkComponentTypes.POS, new BlockPos(hoveredWorldX, y, hoveredWorldZ))
-							.add(LandmarkComponentTypes.NAME, block.getName())
-							.add(LandmarkComponentTypes.COLOR, ColorUtil.argbToABGR(block.getDefaultMapColor().getRenderColor(MapColor.Brightness.NORMAL)));
-						if (!block.asItem().getDefaultStack().isEmpty()) builder.add(LandmarkComponentTypes.STACK, block.asItem().getDefaultStack());
-						return builder;
-					}
-				));
-			}));
+				if (landmarks == null) return true;
+				landmarks.remove(client.world, hoveredLandmark.owner(), hoveredLandmark.id());
+			}
 			default -> {
 				return super.keyPressed(keyCode, scanCode, modifiers);
 			}
@@ -333,15 +427,54 @@ public class HoofprintScreen extends Screen {
 		return true;
 	}
 
+	private boolean saveLandmark() {
+		if (editingLandmark == null || client == null || client.world == null || client.player == null || !WorldLandmarks.canModify(editingLandmark.owner(), client.world, null)) return true;
+		WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
+		if (landmarks == null) return true;
+		landmarks.put(client.world, editingLandmark);
+		editingLandmark = null;
+		return false;
+	}
+
 	@Override
 	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
 		switch (keyCode) {
-			case GLFW.GLFW_KEY_I -> inspectMode = false;
+			case GLFW.GLFW_KEY_LEFT_ALT -> inspectMode = false;
 			default -> {
 				return super.keyReleased(keyCode, scanCode, modifiers);
 			}
 		}
 		return true;
+	}
+
+	@Override
+	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
+			if (editingLandmark != null) { // discard
+				editingLandmark = null;
+				return true;
+			} else if (hoveredLandmark != null && WorldLandmarks.canModify(hoveredLandmark.owner(), client.world, null) && hoveredLandmark.contains(LandmarkComponentTypes.POS)) {
+				editingLandmark = hoveredLandmark;
+			} else if (hoveredLandmark == null) {
+				if (!ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> editingLandmark = Landmark.create(SurveyorClient.getClientUuid(), new Identifier("hoofprint", "block/%s/%s/%s".formatted(hoveredWorldX, y, hoveredWorldZ)), builder -> {
+					builder.add(LandmarkComponentTypes.POS, new BlockPos(hoveredWorldX, y, hoveredWorldZ))
+						.add(LandmarkComponentTypes.NAME, block.getName())
+						.add(LandmarkComponentTypes.COLOR, ColorUtil.argbToABGR(block.getDefaultMapColor().getRenderColor(MapColor.Brightness.NORMAL)));
+					if (!block.asItem().getDefaultStack().isEmpty()) builder.add(LandmarkComponentTypes.STACK, block.asItem().getDefaultStack());
+					return builder;
+				}))) {
+					editingLandmark = Landmark.create(SurveyorClient.getClientUuid(), Identifier.of(Hoofprint.ID, "custom/%s/%s".formatted(hoveredWorldX, hoveredWorldZ)), b -> b.add(LandmarkComponentTypes.POS, new BlockPos(hoveredWorldX, 0, hoveredWorldZ)));
+				}
+			}
+			landmarkName = new StringBuilder(editingLandmark.getOrDefault(LandmarkComponentTypes.NAME, Text.empty()).getString());
+			landmarkStyle = new StringBuilder(editingLandmark.contains(LandmarkComponentTypes.STACK) ? Registries.ITEM.getId(editingLandmark.get(LandmarkComponentTypes.STACK).getItem()).toString().replace("minecraft:", "") :
+				editingLandmark.contains(LandmarkComponentTypes.COLOR) ? Optional.ofNullable(DyeColor.byFireworkColor(editingLandmark.get(LandmarkComponentTypes.COLOR))).map(d -> d.getName().toLowerCase()).orElse("#" + Integer.toHexString(editingLandmark.get(LandmarkComponentTypes.COLOR))) : "white");
+			editingStyle = false;
+			updateEdited();
+			if (hasShiftDown()) saveLandmark();
+			return true;
+		}
+		return super.mouseClicked(mouseX, mouseY, button);
 	}
 
 	@Override

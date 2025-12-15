@@ -67,7 +67,8 @@ public class HoofprintMapStorage {
 
 	public void landmarksAdded(World world, WorldLandmarks worldLandmarks, Multimap<UUID, Identifier> landmarks) {
 		landmarks.forEach((uuid, id) -> {
-			this.landmarks.computeIfAbsent(uuid, t -> new HashMap<>()).put(id, worldLandmarks.get(uuid, id));
+			Landmark landmark = worldLandmarks.get(uuid, id);
+			if (landmark != null) this.landmarks.computeIfAbsent(uuid, t -> new HashMap<>()).put(id, landmark);
 		});
 	}
 
