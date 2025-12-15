@@ -1,6 +1,6 @@
 <!--suppress HtmlDeprecatedTag, XmlDeprecatedElement -->
 <center>
-<img alt="mod preview" src="https://cdn.modrinth.com/data/8O6iJpuJ/images/8be556ecaff911fe16eb86561f13d40c7fcc9433.png"/><br/>
+<img alt="mod preview" src="https://cdn.modrinth.com/data/8O6iJpuJ/images/362ddc7968f6bf0346b21273d71a4f02779347bf.png"/><br/>
 A minimalist client-side world map.<br/>
 <b>Requires <a href="https://modrinth.com/mod/surveyor">Surveyor Map Framework</a>.</b>
 <b>Requires <a href="https://modrinth.com/mod/connector">Connector</a> and <a href="https://modrinth.com/mod/forgified-fabric-api">FFAPI</a> on forge.</b><br/>
