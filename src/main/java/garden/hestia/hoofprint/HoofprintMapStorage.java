@@ -38,6 +38,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import static garden.hestia.hoofprint.util.ColorConstants.WATER_TEXTURE_COLOR;
+
 public class HoofprintMapStorage {
 	private static final Map<RegistryKey<World>, HoofprintMapStorage> INSTANCES = new HashMap<>();
 	public static final String TEXTURE_PREFIX = "hoofprint/map";
@@ -114,8 +116,8 @@ public class HoofprintMapStorage {
 		LayerSummary.Raw[][] chunkBelowSummaries = new LayerSummary.Raw[34][34];
 
 		for (LayerConfiguration config : List.of(
-			new LayerConfiguration(chunkSummaries, new Biome[544][544], getNativeTexture(rPos, regionTextures), (s, x, z) -> s == null ? null : s.toSingleLayer(null, maxY, world.getHeight())),
-			new LayerConfiguration(chunkBelowSummaries, new Biome[544][544], getNativeTexture(rPos, caveRegionTextures), (s, x, z) -> this.belowLayerUsingCache(chunkSummaries, s, x, z, maxY, world.getHeight()))
+			new LayerConfiguration(chunkSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, regionTextures), (s, x, z) -> s == null ? null : s.toSingleLayer(null, maxY, world.getHeight())),
+			new LayerConfiguration(chunkBelowSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, caveRegionTextures), (s, x, z) -> this.belowLayerUsingCache(chunkSummaries, s, x, z, maxY, world.getHeight()))
 		)) {
 			for (int chunkX = 0; chunkX < 32; chunkX++) {
 				for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
@@ -130,7 +132,10 @@ public class HoofprintMapStorage {
 								RegistryPalette<Biome>.ValueView biomePalette = terrain.getRegion(RegionPos.of(layerPos)).getBiomePalette();
 								for (int i = 0; i < 16; i++) {
 									for (int j = 0; j < 16; j++) {
-										config.biomeCache[(chunkX + 1 + x) * 16 + i][(chunkZ + 1 + z) * 16 + j] = biomePalette.get(layer.biomes()[i * 16 + j]);
+										Biome biome = biomePalette.get(layer.biomes()[i * 16 + j]);
+										if (biome == null) continue;
+										config.waterColors[(chunkX + 1 + x) * 16 + i][(chunkZ + 1 + z) * 16 + j] = biome.getWaterColor();
+										config.foliageColors[(chunkX + 1 + x) * 16 + i][(chunkZ + 1 + z) * 16 + j] = biome.getFoliageColor();
 									}
 								}
 							}
@@ -138,7 +143,7 @@ public class HoofprintMapStorage {
 					}
 					RegistryPalette<Block>.ValueView blockPalette = region.getBlockPalette();
 					if (config.cache[chunkX + 1][chunkZ + 1] == null || blockPalette == null) continue;
-					int[][] colors = this.getColors(config.cache, config.biomeCache, chunkX + 1, chunkZ + 1, blockPalette, lightMap);
+					int[][] colors = this.getColors(config.cache, config.waterColors, config.foliageColors, chunkX + 1, chunkZ + 1, blockPalette, lightMap);
 					for (int x = 0; x < colors.length; x++) {
 						for (int z = 0; z < colors[x].length; z++) {
 							config.texture.getImage().setColor(16 * chunkX + x, 16 * chunkZ + z, ColorUtil.argbToABGR(colors[x][z]));
@@ -156,7 +161,7 @@ public class HoofprintMapStorage {
 		return s.toSingleLayerBelow(null, cache[x + 1][z + 1].depths(), worldHeight);
 	}
 
-	record LayerConfiguration(LayerSummary.Raw[][] cache, Biome[][] biomeCache, NativeImageBackedTexture texture, Function3<ChunkSummary, Integer, Integer, LayerSummary.Raw> flattener) {}
+	record LayerConfiguration(LayerSummary.Raw[][] cache, int[][] waterColors, int[][] foliageColors, NativeImageBackedTexture texture, Function3<ChunkSummary, Integer, Integer, LayerSummary.Raw> flattener) {}
 
 	NativeImageBackedTexture getNativeTexture(RegionPos rPos, Map<RegionPos, Identifier> regionTextures) {
 		Identifier textureId = regionTextures.computeIfAbsent(rPos, r -> MinecraftClient.getInstance().getTextureManager().registerDynamicTexture(TEXTURE_PREFIX, new NativeImageBackedTexture(512, 512, true)));
@@ -166,7 +171,7 @@ public class HoofprintMapStorage {
 		return terrainTexture;
 	}
 
-	int[][] getColors(LayerSummary.Raw[][] chunks, Biome[][] biomes, int chunkX, int chunkZ, RegistryPalette<Block>.ValueView blockPalette, ConstantLightMap lightMap) {
+	int[][] getColors(LayerSummary.Raw[][] chunks, int[][] waterColors, int[][] foliageColors, int chunkX, int chunkZ, RegistryPalette<Block>.ValueView blockPalette, ConstantLightMap lightMap) {
 		LayerSummary.Raw layer = chunks[chunkX][chunkZ];
 		LayerSummary.Raw aboveLayer = chunks[chunkX][chunkZ - 1];
 		int[][] colors = new int[16][16];
@@ -177,12 +182,12 @@ public class HoofprintMapStorage {
 				int color;
 				int waterColor;
 				if (!Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0) {
-					color = ColorUtil.getBlendedBiomeColor(biomes, ColorUtil::getWaterColor, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.blendRadius);
+					color = ColorUtil.tint(WATER_TEXTURE_COLOR, ColorUtil.blendColors(waterColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.blendRadius));
 				} else {
 					Block block = blockPalette.get(layer.blocks()[i]);
-					Function<Biome, Integer> biomeFunction = ColorUtil.getBiomeColorProvider(block);
-					if (biomeFunction != null) {
-						color = ColorUtil.getBlendedBiomeColor(biomes, biomeFunction, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.blendRadius);
+					Function<Integer, Integer> foliageFunction = ColorUtil.getBiomeColorProvider(block);
+					if (foliageFunction != null) {
+						color = foliageFunction.apply(ColorUtil.blendColors(foliageColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.blendRadius));
 					} else {
 						color = ColorUtil.getStaticBlockColor(block);
 					}
@@ -207,7 +212,7 @@ public class HoofprintMapStorage {
 					color = ColorUtil.tint(color, lightMap.getMap()[skyLight][blockLight]);
 				}
 				if (Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0) {
-					waterColor = ColorUtil.getBlendedBiomeColor(biomes, ColorUtil::getWaterColor, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.blendRadius);
+					waterColor = ColorUtil.tint(WATER_TEXTURE_COLOR, ColorUtil.blendColors(waterColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.blendRadius));
 					if (Hoofprint.CONFIG.lighting) {
 						int blockLight = layer.waterLights()[i];
 						int skyLight = ColorUtil.SKY_LIGHT;
