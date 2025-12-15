@@ -47,8 +47,8 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 public class HoofprintScreen extends Screen {
-	public static final Identifier BACKGROUND = Identifier.of("hoofprint", "textures/map/map_background_checkerboard.png");
-	public static final Identifier BACKGROUND_DARK = Identifier.of("hoofprint", "textures/map/map_background_checkerboard_dark.png");
+	public static final Identifier BACKGROUND = Identifier.of("hoofprint", "map_background_checkerboard");
+	public static final Identifier BACKGROUND_DARK = Identifier.of("hoofprint", "map_background_checkerboard_dark");
 	HoofprintMapStorage mapStorage;
 	private double centreX = 0;
 	private double centreZ = 0;
@@ -95,7 +95,7 @@ public class HoofprintScreen extends Screen {
 		if (Hoofprint.CONFIG.renderBackground && (areaX2 - areaX1) > 0 && (areaY2 - areaY1) > 0) {
 			context.getMatrices().push();
 			context.getMatrices().translate(areaX1, areaY1, 0);
-			context.drawNineSlicedTexture(caveMode ? BACKGROUND_DARK : BACKGROUND, 0, 0, (int) (areaX2 - areaX1), (int) (areaY2 - areaY1), 18, 256, 256, 0, 0);
+			context.drawGuiTexture(caveMode ? BACKGROUND_DARK : BACKGROUND, 0, 0, (int) (areaX2 - areaX1), (int) (areaY2 - areaY1));
 			context.getMatrices().pop();
 		}
 
@@ -215,7 +215,6 @@ public class HoofprintScreen extends Screen {
 		if (!mapStorage.terrainQueue.isEmpty()) {
 			context.drawText(this.textRenderer, Text.literal("Loading" + ".".repeat((cursorFrame / 8) % 4)).formatted(Formatting.GRAY), width-this.textRenderer.getWidth(Text.of("Loading...")), height - 10, 0xFFFFFF, false);
 		}
-		super.render(context, mouseX, mouseY, delta);
 	}
 
 	private void renderPlayer(DrawContext context, PlayerSummary player, RegistryKey<World> dim, UUID uuid) {
@@ -495,12 +494,8 @@ public class HoofprintScreen extends Screen {
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		if (button == GLFW.GLFW_MOUSE_BUTTON_3) { // easter egg: knock
 			ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
-				try {
-					BlockSoundGroup group = block.getSoundGroup(null);
-					client.getSoundManager().play(PositionedSoundInstance.master(group.getHitSound(), 1.0F, 0.3F));
-				} catch (NullPointerException e) {
-					// ignored
-				}
+				BlockSoundGroup group = block.getDefaultState().getSoundGroup();
+				client.getSoundManager().play(PositionedSoundInstance.master(group.getHitSound(), 1.0F, 0.3F));
 			});
 		} else if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
 			if (editingLandmark != null) { // discard
@@ -509,7 +504,7 @@ public class HoofprintScreen extends Screen {
 			} else if (hoveredLandmark != null && WorldLandmarks.canModify(hoveredLandmark.owner(), client.world, null) && hoveredLandmark.contains(LandmarkComponentTypes.POS)) {
 				editingLandmark = hoveredLandmark;
 			} else if (hoveredLandmark == null) {
-				if (!ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> editingLandmark = Landmark.create(SurveyorClient.getClientUuid(), new Identifier("hoofprint", "block/%s/%s/%s".formatted(hoveredWorldX, y, hoveredWorldZ)), builder -> {
+				if (!ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> editingLandmark = Landmark.create(SurveyorClient.getClientUuid(), Identifier.of("hoofprint", "block/%s/%s/%s".formatted(hoveredWorldX, y, hoveredWorldZ)), builder -> {
 					builder.add(LandmarkComponentTypes.POS, new BlockPos(hoveredWorldX, y, hoveredWorldZ))
 						.add(LandmarkComponentTypes.NAME, block.getName())
 						.add(LandmarkComponentTypes.COLOR, ColorUtil.argbToABGR(block.getDefaultMapColor().getRenderColor(MapColor.Brightness.NORMAL)));
@@ -524,7 +519,7 @@ public class HoofprintScreen extends Screen {
 				editingLandmark.contains(LandmarkComponentTypes.COLOR) ? Optional.ofNullable(DyeColor.byFireworkColor(editingLandmark.get(LandmarkComponentTypes.COLOR))).map(d -> d.getName().toLowerCase()).orElse("#" + Integer.toHexString(0xFFFFFF & editingLandmark.get(LandmarkComponentTypes.COLOR)).toUpperCase()) : "white");
 			editingStyle = false;
 			updateEdited();
-			SoundEvent placeSound = Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK)).filter(s -> s.getItem() instanceof BlockItem).map(s -> ((BlockItem) s.getItem()).getBlock().getSoundGroup(null).getPlaceSound()).orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
+			SoundEvent placeSound = Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK)).filter(s -> s.getItem() instanceof BlockItem).map(s -> ((BlockItem) s.getItem()).getBlock().getDefaultState().getSoundGroup().getPlaceSound()).orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
 			client.getSoundManager().play(PositionedSoundInstance.master(placeSound, 1.2F));
 			if (hasShiftDown()) saveLandmark();
 			return true;
