@@ -417,6 +417,10 @@ public class HoofprintScreen extends Screen {
 			case GLFW.GLFW_KEY_DOWN -> centreZ++;
 			case GLFW.GLFW_KEY_LEFT -> centreX--;
 			case GLFW.GLFW_KEY_RIGHT -> centreX++;
+			case GLFW.GLFW_KEY_SPACE -> {
+				this.centreX = client.player.getBlockX();
+				this.centreZ = client.player.getBlockZ();
+			}
 			case GLFW.GLFW_KEY_DELETE -> {
 				if (client == null || client.world == null || client.player == null || hoveredLandmark == null || !WorldLandmarks.canModify (hoveredLandmark.owner(), client.world, null)) return true;
 				WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();

@@ -25,6 +25,7 @@ A minimalist client-side world map.<br/>
   - `TAB` to edit the waypoint style (accepts colors, item IDs, and #hex)
   - `ENTER` to save your changes, or `ESC` to discard them
 - `DEL` to remove the hovered waypoint
+- `SPACE` to recenter the map on the player
 - `H` to hide all map decorations
 - `ALT` to view info about the block under the cursor (also shows waypoint names)
 - `TAB` to view the cave layer
