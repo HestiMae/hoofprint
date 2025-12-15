@@ -7,7 +7,7 @@ import net.minecraft.util.math.ColorHelper;
 import net.minecraft.world.biome.Biome;
 
 import java.util.Map;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static garden.hestia.hoofprint.util.ColorConstants.WATER_MAP_COLOR;
@@ -15,23 +15,17 @@ import static garden.hestia.hoofprint.util.ColorConstants.WATER_TEXTURE_COLOR;
 
 public class ColorUtil {
 	public static final int SKY_LIGHT = 15;
-	public static final Map<Predicate<Block>, BiFunction<Block, Biome, Integer>> BLOCK_COLOR_PROVIDERS = Map.of(
-		BlockConstants.FOLIAGE_BLOCKS::contains,
-		(block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, biome.getFoliageColor()),
-		BlockConstants.GRASS_BLOCKS::contains,
-		(block, biome) -> ColorUtil.tint(ColorConstants.GRASS_TEXTURE_COLOR, biome.getFoliageColor()),
-		BlockConstants.GRASS_BLOCK_BLOCKS::contains,
-		(block, biome) -> ColorUtil.tint(ColorConstants.GRASS_BLOCK_TEXTURE_COLOR, biome.getFoliageColor()),
-		BlockConstants.STONE_BLOCKS::contains,
-		(block, biome) -> ColorConstants.STONE_MAP_COLOR,
-		BlockConstants.ICE_BLOCKS::contains,
-		(block, biome) -> ColorConstants.ICE_MAP_COLOR,
-		BlockConstants.SPRUCE_BLOCKS::contains,
-		(block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.getSpruceColor()),
-		BlockConstants.BIRCH_BLOCKS::contains,
-		(block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.getBirchColor()),
-		BlockConstants.MANGROVE_BLOCKS::contains,
-		(block, biome) -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.getMangroveColor())
+	public static final Map<Predicate<Block>, Function<Biome, Integer>> BLOCK_COLOR_PROVIDERS = Map.of(
+		BlockConstants.FOLIAGE_BLOCKS::contains, biome -> ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, biome.getFoliageColor()),
+		BlockConstants.GRASS_BLOCKS::contains, biome -> ColorUtil.tint(ColorConstants.GRASS_TEXTURE_COLOR, biome.getFoliageColor()),
+		BlockConstants.GRASS_BLOCK_BLOCKS::contains, biome -> ColorUtil.tint(ColorConstants.GRASS_BLOCK_TEXTURE_COLOR, biome.getFoliageColor())
+	);
+	public static final Map<Predicate<Block>, Integer> CONSTANT_BLOCK_COLOR_PROVIDERS = Map.of(
+		BlockConstants.STONE_BLOCKS::contains, ColorConstants.STONE_MAP_COLOR,
+		BlockConstants.ICE_BLOCKS::contains, ColorConstants.ICE_MAP_COLOR,
+		BlockConstants.SPRUCE_BLOCKS::contains, ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.getSpruceColor()),
+		BlockConstants.BIRCH_BLOCKS::contains, ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.getBirchColor()),
+		BlockConstants.MANGROVE_BLOCKS::contains, ColorUtil.tint(ColorConstants.FOLIAGE_TEXTURE_COLOR, FoliageColors.getMangroveColor())
 	);
 
 	public static int tint(int base, int tint) {
@@ -99,10 +93,38 @@ public class ColorUtil {
 		}
 	}
 
-	public static int getBlockColour(Block block, Biome biome) {
+	public static int getBlendedBiomeColor(Biome[][] biome, Function<Biome, Integer> getter, int x, int z, int radius) {
+		if (radius == 0) return getter.apply(biome[x][z]);
+		long r = 0;
+		long g = 0;
+		long b = 0;
+		int num = 0;
+		for (int i = x - radius; i < x + radius; i++) {
+			for (int j = z - radius; j < z + radius; j++) {
+				if (i < 0 || j < 0 || i >= biome.length || j >= biome[i].length || biome[i][j] == null || (x - i) * (x - i) + (z - j) * (z - j) > radius * radius) continue;
+				int c = getter.apply(biome[i][j]);
+				r += (c & 0xFF0000) >> 16;
+				g += (c & 0xFF00) >> 8;
+				b += c & 0xFF;
+				num++;
+			}
+		}
+		return Math.toIntExact((r / num & 0xFF) << 16 | (g / num & 0xFF) << 8 | b / num & 0xFF);
+	}
+
+	public static Function<Biome, Integer> getBiomeColorProvider(Block block) {
 		for (Predicate<Block> predicate : BLOCK_COLOR_PROVIDERS.keySet()) {
 			if (predicate.test(block)) {
-				return BLOCK_COLOR_PROVIDERS.get(predicate).apply(block, biome);
+				return BLOCK_COLOR_PROVIDERS.get(predicate);
+			}
+		}
+		return null;
+	}
+
+	public static int getStaticBlockColor(Block block) {
+		for (Predicate<Block> predicate : CONSTANT_BLOCK_COLOR_PROVIDERS.keySet()) {
+			if (predicate.test(block)) {
+				return CONSTANT_BLOCK_COLOR_PROVIDERS.get(predicate);
 			}
 		}
 		return block.getDefaultMapColor().color;
