@@ -50,6 +50,7 @@ import java.util.function.Consumer;
 public class HoofprintScreen extends Screen {
 	public static final Identifier BACKGROUND = Identifier.of("hoofprint", "map_background_checkerboard");
 	public static final Identifier BACKGROUND_DARK = Identifier.of("hoofprint", "map_background_checkerboard_dark");
+	private static final float PLAYER_ROTATION_STEPS = 16;
 	HoofprintMapStorage mapStorage;
 	private double centreX = 0;
 	private double centreZ = 0;
@@ -93,7 +94,7 @@ public class HoofprintScreen extends Screen {
 		double areaX2 = Math.min(worldXToRenderX(borderX2) + 8, screenToRender(width) + (worldXToRenderX(borderX2) + 8) % 256);
 		double areaY1 = Math.max(worldZToRenderY(borderZ1) - 8, -256 + (worldZToRenderY(borderZ1) - 8) % 256);
 		double areaY2 = Math.min(worldZToRenderY(borderZ2) + 8, screenToRender(height) + (worldZToRenderY(borderZ2) + 8) % 256);
-		if (Hoofprint.CONFIG.renderBackground && (areaX2 - areaX1) > 0 && (areaY2 - areaY1) > 0) {
+		if (Hoofprint.CONFIG.style.mapBackground && (areaX2 - areaX1) > 0 && (areaY2 - areaY1) > 0) {
 			context.getMatrices().pushMatrix();
 			context.getMatrices().translate((float) areaX1, (float) areaY1);
 			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, caveMode ? BACKGROUND_DARK : BACKGROUND, 0, 0, (int) (areaX2 - areaX1), (int) (areaY2 - areaY1));
@@ -157,7 +158,7 @@ public class HoofprintScreen extends Screen {
 
 		hoveredPlayer = null;
 		for (PlayerSummary player : SurveyorClient.getFriends().values()) {
-			if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline) || hideDecorations) continue;
+			if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations) continue;
 			double playerCenterX = renderToScreen(worldXToRenderX(player.pos().getX()));
 			double playerCenterY = renderToScreen(worldZToRenderY(player.pos().getZ()));
 			double mouseDistance = (hoveredScreenX - playerCenterX) * (hoveredScreenX - playerCenterX) + (hoveredScreenY - playerCenterY) * (hoveredScreenY - playerCenterY);
@@ -213,13 +214,14 @@ public class HoofprintScreen extends Screen {
 	}
 
 	private void renderPlayer(DrawContext context, PlayerSummary player, RegistryKey<World> dim, UUID uuid) {
-		if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.showOffline) || hideDecorations) return;
+		if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations) return;
 		double playerScreenX = renderToScreen(worldXToRenderX(player.pos().getX()));
 		double playerScreenY = renderToScreen(worldZToRenderY(player.pos().getZ()));
 		boolean mouseOver = player == hoveredPlayer;
 		context.getMatrices().pushMatrix();
 		context.getMatrices().translate((float) playerScreenX, (float) playerScreenY);
-		context.getMatrices().rotate((float) Math.toRadians(180 + player.yaw()));
+		float playerRotation = ((float) Math.round(player.yaw() / 360f * PLAYER_ROTATION_STEPS) / PLAYER_ROTATION_STEPS) * 360f;
+		context.getMatrices().rotate((float) Math.toRadians(180 + playerRotation));
 		context.getMatrices().translate(-2.5F, -3.5F);
 		boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
 		int tint = !player.online() ? 77 : mouseOver ? 204 : 255;
@@ -255,7 +257,7 @@ public class HoofprintScreen extends Screen {
 		int tint = mouseOver ? 0xB2B2B2 : 0xFFFFFF;
 		context.getMatrices().pushMatrix();
 		context.getMatrices().translate((float) landmarkScreenX, (float) landmarkScreenY);
-		if (Hoofprint.CONFIG.itemOutlines && landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
+		if (Hoofprint.CONFIG.style.itemOutlines && landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
 			// FIXME: Find some new way to do item outlines on 1.21.7
 		}
 		if (landmark.contains(LandmarkComponentTypes.STACK) && !landmark.get(LandmarkComponentTypes.STACK).isEmpty()) {
@@ -285,7 +287,7 @@ public class HoofprintScreen extends Screen {
 		if (client == null || client.world == null) return false;
 		WorldTerrainSummary terrain = WorldSummary.of(client.world).terrain();
 		if (terrain == null) return false;
-		Integer maxY = Hoofprint.CONFIG.dimensionMaxYValues.getOrDefault(client.world.getRegistryKey().getValue().toString(), null);
+		Integer maxY = Hoofprint.CONFIG.dimensions.ceilings.getOrDefault(client.world.getRegistryKey().getValue().toString(), null);
 		ChunkSummary summary = terrain.get(cp);
 		if (summary == null) return false;
 		LayerSummary.Raw layer = summary.toSingleLayer(null, maxY, client.world.getHeight());

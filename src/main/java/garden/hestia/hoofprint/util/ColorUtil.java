@@ -3,15 +3,11 @@ package garden.hestia.hoofprint.util;
 import garden.hestia.hoofprint.Hoofprint;
 import net.minecraft.block.Block;
 import net.minecraft.util.math.ColorHelper;
-import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.FoliageColors;
 
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
-
-import static garden.hestia.hoofprint.util.ColorConstants.WATER_MAP_COLOR;
-import static garden.hestia.hoofprint.util.ColorConstants.WATER_TEXTURE_COLOR;
 
 public class ColorUtil {
 	public static final int SKY_LIGHT = 15;
@@ -112,6 +108,7 @@ public class ColorUtil {
 	}
 
 	public static Function<Integer, Integer> getBiomeColorProvider(Block block) {
+		if (!Hoofprint.CONFIG.style.biomeFoliage) return null;
 		for (Predicate<Block> predicate : BLOCK_COLOR_PROVIDERS.keySet()) {
 			if (predicate.test(block)) {
 				return BLOCK_COLOR_PROVIDERS.get(predicate);
@@ -121,16 +118,14 @@ public class ColorUtil {
 	}
 
 	public static int getStaticBlockColor(Block block) {
-		for (Predicate<Block> predicate : CONSTANT_BLOCK_COLOR_PROVIDERS.keySet()) {
-			if (predicate.test(block)) {
-				return CONSTANT_BLOCK_COLOR_PROVIDERS.get(predicate);
+		if (Hoofprint.CONFIG.style.accurateColors) {
+			for (Predicate<Block> predicate : CONSTANT_BLOCK_COLOR_PROVIDERS.keySet()) {
+				if (predicate.test(block)) {
+					return CONSTANT_BLOCK_COLOR_PROVIDERS.get(predicate);
+				}
 			}
 		}
 		return block.getDefaultMapColor().color;
-	}
-
-	public static int getWaterColor(Biome biome) {
-		return Hoofprint.CONFIG.biomeWater ? tint(WATER_TEXTURE_COLOR, biome.getWaterColor()) : applyBrightnessRGB(Brightness.LOWEST, WATER_MAP_COLOR);
 	}
 
 	public static int argbToABGR(int argbColor) {

@@ -38,7 +38,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import static garden.hestia.hoofprint.util.ColorConstants.WATER_MAP_COLOR;
 import static garden.hestia.hoofprint.util.ColorConstants.WATER_TEXTURE_COLOR;
+import static garden.hestia.hoofprint.util.ColorUtil.applyBrightnessRGB;
 
 public class HoofprintMapStorage {
 	private static final Map<RegistryKey<World>, HoofprintMapStorage> INSTANCES = new HashMap<>();
@@ -92,7 +94,7 @@ public class HoofprintMapStorage {
 	}
 
 	public void tick(World world) {
-		if (world.getTime() % Hoofprint.CONFIG.ticksPerRegion != 0) return;
+		if (world.getTime() % Hoofprint.CONFIG.debug.ticksPerBake != 0) return;
 		RegionPos rPos = terrainQueue.keySet().stream().findFirst().orElse(null);
 		if (rPos != null) {
 			bake(world, rPos, terrainQueue.remove(rPos));
@@ -107,10 +109,10 @@ public class HoofprintMapStorage {
 		changes.andNot(filledArea); // Don't live update the existing map.
 		if (changes.isEmpty()) return;
 		filledArea.or(changes);
-		if (Hoofprint.CONFIG.logMapBaking) Hoofprint.LOGGER.info("[Hoofprint] Baking {} chunks to the map texture for region {}", changes.cardinality(), rPos);
-		ConstantLightMap lightMap = Hoofprint.CONFIG.dimensionLightMaps.getOrDefault(world.getRegistryKey().getValue().toString(), Hoofprint.CONFIG.lightMap);
+		if (Hoofprint.CONFIG.debug.logBaking) Hoofprint.LOGGER.info("[Hoofprint] Baking {} chunks to the map texture for region {}", changes.cardinality(), rPos);
+		ConstantLightMap lightMap = Hoofprint.CONFIG.dimensions.lightmaps.getOrDefault(world.getRegistryKey().getValue().toString(), Hoofprint.CONFIG.dimensions.defaultLightmap);
 		ChunkPos regionChunkOrigin = rPos.toChunk();
-		Integer maxY = Hoofprint.CONFIG.dimensionMaxYValues.getOrDefault(world.getRegistryKey().getValue().toString(), null);
+		Integer maxY = Hoofprint.CONFIG.dimensions.ceilings.getOrDefault(world.getRegistryKey().getValue().toString(), null);
 
 		LayerSummary.Raw[][] chunkSummaries = new LayerSummary.Raw[34][34];
 		LayerSummary.Raw[][] chunkBelowSummaries = new LayerSummary.Raw[34][34];
@@ -185,20 +187,20 @@ public class HoofprintMapStorage {
 				if (!layer.exists().get(i)) continue;
 				int color;
 				int waterColor;
-				if (!Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0) {
-					color = ColorUtil.tint(WATER_TEXTURE_COLOR, ColorUtil.blendColors(waterColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.blendRadius));
+				if (!Hoofprint.CONFIG.style.transparentWater && layer.waterDepths()[i] > 0) {
+					color = Hoofprint.CONFIG.style.biomeWater ? ColorUtil.tint(WATER_TEXTURE_COLOR, ColorUtil.blendColors(waterColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.style.blendRadius)) : WATER_MAP_COLOR;
 				} else {
 					Block block = blockPalette.get(layer.blocks()[i]);
 					Function<Integer, Integer> foliageFunction = ColorUtil.getBiomeColorProvider(block);
 					if (foliageFunction != null) {
-						color = foliageFunction.apply(ColorUtil.blendColors(foliageColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.blendRadius));
+						color = foliageFunction.apply(ColorUtil.blendColors(foliageColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.style.blendRadius));
 					} else {
 						color = ColorUtil.getStaticBlockColor(block);
 					}
 				}
-				if (Hoofprint.CONFIG.topography) {
+				if (Hoofprint.CONFIG.style.topography) {
 					ColorUtil.Brightness brightness = ColorUtil.Brightness.NORMAL;
-					if (!Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0) {
+					if (!Hoofprint.CONFIG.style.transparentWater && layer.waterDepths()[i] > 0) {
 						brightness = ColorUtil.getBrightnessFromDepth(layer.waterDepths()[i], x, z);
 					} else if (z > 0) {
 						if (layer.depths()[i - 1] < layer.depths()[i]) brightness = ColorUtil.Brightness.LOW;
@@ -208,18 +210,18 @@ public class HoofprintMapStorage {
 						if (aboveLayer.depths()[x * 16 + 15] > layer.depths()[i])
 							brightness = ColorUtil.Brightness.HIGH;
 					}
-					color = ColorUtil.applyBrightnessRGB(brightness, color);
+					color = applyBrightnessRGB(brightness, color);
 				}
-				if (Hoofprint.CONFIG.lighting && (Hoofprint.CONFIG.transparentWater || layer.waterDepths()[i] == 0)) {
+				if (Hoofprint.CONFIG.style.lighting && (Hoofprint.CONFIG.style.transparentWater || layer.waterDepths()[i] == 0)) {
 					int blockLight = layer.lightLevels()[i];
-					int skyLight = hasSky ? Math.max(ColorUtil.SKY_LIGHT - layer.waterDepths()[i], 0) : Hoofprint.CONFIG.ambientSkyLight;
+					int skyLight = hasSky ? Math.max(ColorUtil.SKY_LIGHT - layer.waterDepths()[i], 0) : Hoofprint.CONFIG.style.ambientLight;
 					color = ColorUtil.tint(color, lightMap.getMap()[skyLight][blockLight]);
 				}
-				if (Hoofprint.CONFIG.transparentWater && layer.waterDepths()[i] > 0) {
-					waterColor = ColorUtil.tint(WATER_TEXTURE_COLOR, ColorUtil.blendColors(waterColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.blendRadius));
-					if (Hoofprint.CONFIG.lighting) {
+				if (Hoofprint.CONFIG.style.transparentWater && layer.waterDepths()[i] > 0) {
+					waterColor = Hoofprint.CONFIG.style.biomeWater ? ColorUtil.tint(WATER_TEXTURE_COLOR, ColorUtil.blendColors(waterColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.style.blendRadius)) : applyBrightnessRGB(ColorUtil.Brightness.LOW, WATER_MAP_COLOR);
+					if (Hoofprint.CONFIG.style.lighting) {
 						int blockLight = layer.waterLights()[i];
-						int skyLight = hasSky ? ColorUtil.SKY_LIGHT : Hoofprint.CONFIG.ambientSkyLight;
+						int skyLight = hasSky ? ColorUtil.SKY_LIGHT : Hoofprint.CONFIG.style.ambientLight;
 						waterColor = ColorUtil.tint(waterColor, lightMap.getMap()[skyLight][blockLight]);
 					}
 					color = ColorUtil.blend(color, waterColor, 0.6F);
