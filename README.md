@@ -1,6 +1,6 @@
 <!--suppress HtmlDeprecatedTag, XmlDeprecatedElement -->
 <center>
-<img alt="mod preview" src="https://cdn.modrinth.com/data/8O6iJpuJ/images/8be556ecaff911fe16eb86561f13d40c7fcc9433.png"/><br/>
+<img alt="mod preview" src="https://cdn.modrinth.com/data/8O6iJpuJ/images/521486f2c1761f57930f9e3c3ae68f53e64f4322.png"/><br/>
 A minimalist client-side world map.<br/>
 <b>Requires <a href="https://modrinth.com/mod/surveyor">Surveyor Map Framework</a>.</b>
 <b>Requires <a href="https://modrinth.com/mod/connector">Connector</a> and <a href="https://modrinth.com/mod/forgified-fabric-api">FFAPI</a> on forge.</b><br/>
@@ -8,14 +8,17 @@ A minimalist client-side world map.<br/>
 
 ---
 
-**Hoofprint** is an enhanced-vanilla-style world map with:
-- Fancy rendering features like biome colors, block lighting, and game-accurate transparent water
+**Hoofprint** is a client-side world map with:
+- Two styles: vanilla map style, and game-accurate style - with biome colors, lighting, and transparent water.
 - Waypoints in three styles: vanilla-style banner (recolorable), item, and block
 - Basic cave mapping, and the ability to view details about blocks on the map.
 - Global player positions and map/waypoint sharing via `/surveyor share` when surveyor is on the server
 - Automatic waypoint migration from existing Xaero's Minimap saves
 - Support for Waystones ([Surveystones](https://modrinth.com/mod/surveystones)) and OPAC ([Surveyalot](https://modrinth.com/mod/surveyalot))
 - Shared save format with [Antique Atlas 4](https://modrinth.com/mod/antique-atlas-4)
+
+![game-accurate style preview](https://cdn.modrinth.com/data/8O6iJpuJ/images/60c1316708b7cf3b7dec2bc1fe981a92538542d8.png)
+_game-accurate style!_
 
 **Keybinds**:
 - `M` to open the hoofprint world map screen
@@ -37,6 +40,7 @@ Hoofprint's configuration can be edited in `config/hoofprint.toml`, or in-game u
 - Lightmap selection, allowing you to render the map as if it's night
 - Dimension overrides for maximum Y (e.g. nether) and for lightmap
 - Handling for the world border
+- A secret?
 
 ### Troubleshooting / Suggestions
 
