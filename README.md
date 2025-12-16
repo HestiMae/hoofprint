@@ -9,7 +9,7 @@ A minimalist client-side world map.<br/>
 ---
 
 **Hoofprint** is a client-side world map with:
-- Two styles: vanilla map style, and game-accurate style - with biome colors, block lighting, and transparent water.
+- Two styles: vanilla map style, and game-accurate style - with biome colors, lighting, and transparent water.
 - Waypoints in three styles: vanilla-style banner (recolorable), item, and block
 - Basic cave mapping, and the ability to view details about blocks on the map.
 - Global player positions and map/waypoint sharing via `/surveyor share` when surveyor is on the server
