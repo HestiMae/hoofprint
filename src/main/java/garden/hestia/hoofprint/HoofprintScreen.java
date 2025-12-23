@@ -15,6 +15,7 @@ import folk.sisby.surveyor.terrain.WorldTerrainSummary;
 import folk.sisby.surveyor.util.RegionPos;
 import garden.hestia.hoofprint.util.ColorUtil;
 import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
 import net.minecraft.block.MapColor;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -525,8 +526,13 @@ public class HoofprintScreen extends Screen {
 				editingLandmark.contains(LandmarkComponentTypes.COLOR) ? Optional.ofNullable(DyeColor.byFireworkColor(editingLandmark.get(LandmarkComponentTypes.COLOR))).map(d -> d.getName().toLowerCase()).orElse("#" + Integer.toHexString(0xFFFFFF & editingLandmark.get(LandmarkComponentTypes.COLOR)).toUpperCase()) : "white");
 			editingStyle = false;
 			updateEdited();
-			SoundEvent placeSound = Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK)).filter(s -> s.getItem() instanceof BlockItem).map(s -> ((BlockItem) s.getItem()).getBlock().getSoundGroup(null).getPlaceSound()).orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
-			client.getSoundManager().play(PositionedSoundInstance.master(placeSound, 1.2F));
+			SoundEvent placeSound =
+				Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK))
+					.filter(s -> s.getItem() instanceof BlockItem)
+					.map(s -> ((BlockItem) s.getItem()).getBlock().getSoundGroup(Blocks.AIR.getDefaultState()).getPlaceSound())
+					.orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
+
+			if (placeSound != null) client.getSoundManager().play(PositionedSoundInstance.master(placeSound, 1.2F));
 			if (hasShiftDown()) saveLandmark();
 			return true;
 		}
