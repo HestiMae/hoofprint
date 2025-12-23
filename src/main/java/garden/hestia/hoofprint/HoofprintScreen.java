@@ -529,7 +529,7 @@ public class HoofprintScreen extends Screen {
 			SoundEvent placeSound =
 				Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK))
 					.filter(s -> s.getItem() instanceof BlockItem)
-					.map(s -> ((BlockItem) s.getItem()).getBlock().getSoundGroup(Blocks.AIR.getDefaultState()).getPlaceSound())
+					.map(s -> ((BlockItem) s.getItem()).getBlock().getSoundGroup(((BlockItem) s.getItem()).getBlock().getDefaultState()).getPlaceSound())
 					.orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
 
 			if (placeSound != null) client.getSoundManager().play(PositionedSoundInstance.master(placeSound, 1.2F));
