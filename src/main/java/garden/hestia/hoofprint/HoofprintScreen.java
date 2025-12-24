@@ -497,12 +497,8 @@ public class HoofprintScreen extends Screen {
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		if (button == GLFW.GLFW_MOUSE_BUTTON_3) { // easter egg: knock
 			ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
-				try {
-					BlockSoundGroup group = block.getSoundGroup(null);
-					client.getSoundManager().play(PositionedSoundInstance.master(group.getHitSound(), 1.0F, 0.3F));
-				} catch (NullPointerException e) {
-					// ignored
-				}
+				BlockSoundGroup group = block.getSoundGroup(block.getDefaultState());
+				client.getSoundManager().play(PositionedSoundInstance.master(group.getHitSound(), 1.0F, 0.3F));
 			});
 		} else if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
 			if (editingLandmark != null) { // discard
@@ -526,13 +522,8 @@ public class HoofprintScreen extends Screen {
 				editingLandmark.contains(LandmarkComponentTypes.COLOR) ? Optional.ofNullable(DyeColor.byFireworkColor(editingLandmark.get(LandmarkComponentTypes.COLOR))).map(d -> d.getName().toLowerCase()).orElse("#" + Integer.toHexString(0xFFFFFF & editingLandmark.get(LandmarkComponentTypes.COLOR)).toUpperCase()) : "white");
 			editingStyle = false;
 			updateEdited();
-			SoundEvent placeSound =
-				Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK))
-					.filter(s -> s.getItem() instanceof BlockItem)
-					.map(s -> ((BlockItem) s.getItem()).getBlock().getSoundGroup(((BlockItem) s.getItem()).getBlock().getDefaultState()).getPlaceSound())
-					.orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
-
-			if (placeSound != null) client.getSoundManager().play(PositionedSoundInstance.master(placeSound, 1.2F));
+			SoundEvent placeSound = Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK)).filter(s -> s.getItem() instanceof BlockItem).map(s -> ((BlockItem) s.getItem()).getBlock()).map(b -> b.getSoundGroup(b.getDefaultState()).getPlaceSound()).orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
+			client.getSoundManager().play(PositionedSoundInstance.master(placeSound, 1.2F));
 			if (hasShiftDown()) saveLandmark();
 			return true;
 		}
