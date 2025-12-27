@@ -32,6 +32,7 @@ _game-accurate style!_
 - `H` to hide all map decorations
 - `ALT` to view info about the block under the cursor (also shows waypoint names)
 - `TAB` to view the cave layer
+- `[` and `]` to view the previous/next dimension map
 
 ### Configuration
 
