@@ -466,7 +466,7 @@ public class HoofprintScreen extends Screen {
 				}
 			}
 			case GLFW.GLFW_KEY_DELETE -> {
-				if (hoveredLandmark == null || !WorldLandmarks.canModify(hoveredLandmark.owner(), null, null)) return true;
+				if (hoveredLandmark == null || !SurveyorClient.canModify(hoveredLandmark.owner())) return true;
 				WorldSummary summary = SurveyorClient.tryGetSummary(dim);
 				if (summary == null) return true;
 				WorldLandmarks landmarks = summary.landmarks();
@@ -498,7 +498,7 @@ public class HoofprintScreen extends Screen {
 	}
 
 	private void saveLandmark() {
-		if (editingLandmark == null || !WorldLandmarks.canModify(editingLandmark.owner(), null, null)) return;
+		if (editingLandmark == null || !SurveyorClient.canModify(editingLandmark.owner())) return;
 		WorldSummary summary = SurveyorClient.tryGetSummary(dim);
 		if (summary == null) return;
 		WorldLandmarks landmarks = summary.landmarks();
@@ -532,7 +532,7 @@ public class HoofprintScreen extends Screen {
 			if (editingLandmark != null) { // discard
 				editingLandmark = null;
 				return true;
-			} else if (hoveredLandmark != null && WorldLandmarks.canModify(hoveredLandmark.owner(), null, null) && hoveredLandmark.contains(LandmarkComponentTypes.POS)) {
+			} else if (hoveredLandmark != null && SurveyorClient.canModify(hoveredLandmark.owner()) && hoveredLandmark.contains(LandmarkComponentTypes.POS)) {
 				editingLandmark = hoveredLandmark;
 			} else if (hoveredLandmark == null) {
 				if (!ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> editingLandmark = Landmark.create(SurveyorClient.getClientUuid(), new Identifier("hoofprint", "block/%s/%s/%s".formatted(hoveredWorldX, y, hoveredWorldZ)), builder -> {
