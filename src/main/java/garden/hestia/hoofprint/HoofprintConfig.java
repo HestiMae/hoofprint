@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class HoofprintConfig extends WrappedConfig {
 	@Comment("Default scale / zoom level for terrain.")
@@ -84,6 +85,22 @@ public class HoofprintConfig extends WrappedConfig {
 			order.removeIf(v -> dims.stream().noneMatch(d -> d.getValue().toString().equals(v)));
 			dims.stream().filter(dim -> !order.contains(dim.getValue().toString())).forEach(dim -> order.add(dim.getValue().toString()));
 			return dims.stream().sorted(Comparator.comparing(dim -> order.indexOf(dim.getValue().toString()))).toList();
+		}
+
+		@Comment("Coordinate scales of each dimension.")
+		@Comment("If not 0, the relative position of the player will be shown.")
+		public Map<String, Integer> scales = ValueMap.builder(0)
+			.put("minecraft:overworld", 8)
+			.put("minecraft:the_nether", 1)
+			.put("minecraft:the_end", 0)
+			.build();
+
+		public Map<RegistryKey<World>, Integer> getScales(ClientPlayNetworkHandler handler) {
+			List<RegistryKey<World>> dims = new ArrayList<>(SurveyorClient.getSummaries(handler).keySet().stream().sorted(Comparator.comparing(RegistryKey::toString)).toList());
+			dims.removeIf(dim -> HoofprintMapStorage.get(dim).isEmpty());
+			scales.keySet().removeIf(v -> dims.stream().noneMatch(d -> d.getValue().toString().equals(v)));
+			dims.stream().filter(dim -> !scales.containsKey(dim.getValue().toString())).forEach(dim -> scales.put(dim.getValue().toString(), 0));
+			return dims.stream().collect(Collectors.toMap(k -> k, k -> scales.get(k.getValue().toString())));
 		}
 
 		@Comment("Which lightmap to use for dimensions not specified below.")

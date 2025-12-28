@@ -16,6 +16,7 @@ import folk.sisby.surveyor.util.RegionPos;
 import garden.hestia.hoofprint.util.ColorUtil;
 import net.minecraft.block.Block;
 import net.minecraft.block.MapColor;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.sound.PositionedSoundInstance;
@@ -156,10 +157,26 @@ public class HoofprintScreen extends Screen {
 		}
 
 		hoveredPlayer = null;
-		for (PlayerSummary player : SurveyorClient.getFriends().values()) {
-			if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations) continue;
-			double playerCenterX = renderToScreen(worldXToRenderX(player.pos().getX()));
-			double playerCenterY = renderToScreen(worldZToRenderY(player.pos().getZ()));
+		for (Map.Entry<UUID, PlayerSummary> entry : SurveyorClient.getFriends().entrySet()) {
+			UUID uuid = entry.getKey();
+			PlayerSummary player = entry.getValue();
+			boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
+			boolean inDim = player.dimension().equals(dim);
+			if ((friend && !inDim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations) continue;
+			double dimX = player.pos().getX();
+			double dimZ = player.pos().getZ();
+			if (!inDim) {
+				Map<RegistryKey<World>, Integer> scales = Hoofprint.CONFIG.dimensions.getScales(MinecraftClient.getInstance().getNetworkHandler());
+				int newScale = scales.getOrDefault(dim, 0);
+				int oldScale = scales.getOrDefault(player.dimension(), 0);
+				if (newScale * oldScale > 0) {
+					double mult = newScale / (double) oldScale;
+					dimX = mult * dimX;
+					dimZ = mult * dimZ;
+				}
+			}
+			double playerCenterX = renderToScreen(worldXToRenderX(dimX));
+			double playerCenterY = renderToScreen(worldZToRenderY(dimZ));
 			double mouseDistance = (hoveredScreenX - playerCenterX) * (hoveredScreenX - playerCenterX) + (hoveredScreenY - playerCenterY) * (hoveredScreenY - playerCenterY);
 			if (mouseDistance < (4 * 4 * client.getWindow().getScaleFactor()) && mouseDistance < bestDistance) {
 				hoveredLandmark = null;
@@ -168,7 +185,7 @@ public class HoofprintScreen extends Screen {
 			}
 		}
 
-		SurveyorClient.getFriends().forEach((uuid, player) -> renderPlayer(context, player, dim, uuid));
+		SurveyorClient.getFriends().forEach((uuid, player) -> renderPlayer(context, player, uuid));
 
 		mapStorage.landmarks.values().stream().filter(landmark -> editingLandmark == null || !landmark.id().equals(editingLandmark.id())).forEach(landmark -> renderLandmark(context, landmark, scaleFactor));
 
@@ -217,24 +234,37 @@ public class HoofprintScreen extends Screen {
 			context.drawText(this.textRenderer, Text.literal("Loading" + ".".repeat((cursorFrame / 8) % 4)).formatted(Formatting.GRAY), width-this.textRenderer.getWidth(Text.of("Loading...")), height - 10, 0xFFFFFF, false);
 		}
 		if (switchFade > 0) {
-			context.drawText(this.textRenderer, Text.literal(WordUtils.capitalizeFully(dim.getValue().getPath().replaceAll("[/_-]", " "))).formatted(Formatting.GRAY), 0, height - 10,  ColorHelper.Argb.getArgb(Math.min(255, (int) (255 * switchFade / 5.0)), 255, 255, 255), false);
+			context.drawText(this.textRenderer, Text.literal(WordUtils.capitalizeFully(dim.getValue().getPath().replaceAll("[/_-]", " "))).formatted(Formatting.WHITE), 0, height - 10,  ColorHelper.Argb.getArgb(Math.min(255, (int) (255 * switchFade / 5.0)), 255, 255, 255), true);
 		}
 		super.render(context, mouseX, mouseY, delta);
 	}
 
-	private void renderPlayer(DrawContext context, PlayerSummary player, RegistryKey<World> dim, UUID uuid) {
-		if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations) return;
-		double playerScreenX = renderToScreen(worldXToRenderX(player.pos().getX()));
-		double playerScreenY = renderToScreen(worldZToRenderY(player.pos().getZ()));
+	private void renderPlayer(DrawContext context, PlayerSummary player, UUID uuid) {
+		boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
+		boolean inDim = player.dimension().equals(dim);
+		if ((friend && !inDim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations) return;
+		double dimX = player.pos().getX();
+		double dimZ = player.pos().getZ();
+		if (!inDim) {
+			Map<RegistryKey<World>, Integer> scales = Hoofprint.CONFIG.dimensions.getScales(MinecraftClient.getInstance().getNetworkHandler());
+			int newScale = scales.getOrDefault(dim, 0);
+			int oldScale = scales.getOrDefault(player.dimension(), 0);
+			if (newScale * oldScale > 0) {
+				double mult = newScale / (double) oldScale;
+				dimX = mult * dimX;
+				dimZ = mult * dimZ;
+			}
+		}
+		double playerScreenX = renderToScreen(worldXToRenderX(dimX));
+		double playerScreenY = renderToScreen(worldZToRenderY(dimZ));
 		boolean mouseOver = player == hoveredPlayer;
 		context.getMatrices().push();
 		context.getMatrices().translate(playerScreenX, playerScreenY, 0);
 		float playerRotation = ((float) Math.round(player.yaw() / 360f * PLAYER_ROTATION_STEPS) / PLAYER_ROTATION_STEPS) * 360f;
 		context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + playerRotation));
 		context.getMatrices().translate(-2.5, -3.5, 0);
-		boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
 		float tint = !player.online() ? 0.3f : mouseOver ? 0.8f : 1f;
-		RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), tint, tint * (friend ? 0.3f : 1.0f), 1.0F);
+		RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), inDim ? 1.0F : 0.8F, tint * (friend ? 0.3f : 1.0f), 1.0F);
 		context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, 2, 0, 5, 7, 128, 128);
 		RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
 		context.getMatrices().pop();
@@ -392,6 +422,21 @@ public class HoofprintScreen extends Screen {
 		}
 	}
 
+	private void changeDim(RegistryKey<World> newDim) {
+		Map<RegistryKey<World>, Integer> scales = Hoofprint.CONFIG.dimensions.getScales(MinecraftClient.getInstance().getNetworkHandler());
+		int newScale = scales.getOrDefault(newDim, 0);
+		int oldScale = scales.getOrDefault(this.dim, 0);
+		dim = newDim;
+		if (newScale * oldScale > 0) {
+			double mult = newScale / (double) oldScale;
+			centreX = mult * centreX;
+			centreZ = mult * centreZ;
+			guiScale = (int) MathHelper.clamp(guiScale / mult, 1, 10);
+		}
+		switchFade = 20;
+		client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_BOOK_PAGE_TURN, 1.1F));
+	}
+
 	@Override
 	public boolean charTyped(char chr, int modifiers) {
 		if (editingLandmark != null) {
@@ -476,19 +521,11 @@ public class HoofprintScreen extends Screen {
 			}
 			case GLFW.GLFW_KEY_LEFT_BRACKET -> {
 				List<RegistryKey<World>> regKeys = Hoofprint.CONFIG.dimensions.getOrder(client.getNetworkHandler());
-				if (regKeys.contains(dim)) {
-					dim = regKeys.get((regKeys.size() + regKeys.indexOf(dim) - 1) % regKeys.size());
-					switchFade = 20;
-					client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_BOOK_PAGE_TURN, 1.1F));
-				}
+				if (regKeys.contains(dim)) changeDim(regKeys.get((regKeys.size() + regKeys.indexOf(dim) - 1) % regKeys.size()));
 			}
 			case GLFW.GLFW_KEY_RIGHT_BRACKET -> {
 				List<RegistryKey<World>> regKeys = Hoofprint.CONFIG.dimensions.getOrder(client.getNetworkHandler());
-				if (regKeys.contains(dim)) {
-					dim = regKeys.get((regKeys.indexOf(dim) + 1) % regKeys.size());
-					switchFade = 20;
-					client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_BOOK_PAGE_TURN, 1.2F));
-				}
+				if (regKeys.contains(dim)) changeDim(regKeys.get((regKeys.indexOf(dim) + 1) % regKeys.size()));
 			}
 			default -> {
 				return super.keyPressed(keyCode, scanCode, modifiers);
