@@ -599,8 +599,8 @@ public class HoofprintScreen extends Screen {
 	public void mouseMoved(double mouseX, double mouseY) {
 		hoveredScreenX = mouseX;
 		hoveredScreenY = mouseY;
-		hoveredWorldX = (int) Math.floor(screenXToWorldX(mouseX) + (screenXToWorldX(mouseX) < 0 ? 0.5 : -0.5)); // Dunno
-		hoveredWorldZ = (int) Math.floor(screenYToWorldZ(mouseY));
+		hoveredWorldX = MathHelper.floor(screenXToWorldX(mouseX));
+		hoveredWorldZ = MathHelper.floor(screenYToWorldZ(mouseY));
 		super.mouseMoved(mouseX, mouseY);
 	}
 
