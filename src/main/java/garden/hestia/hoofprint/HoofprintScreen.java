@@ -264,7 +264,7 @@ public class HoofprintScreen extends Screen {
 		context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + playerRotation));
 		context.getMatrices().translate(-2.5, -3.5, 0);
 		float tint = !player.online() ? 0.3f : mouseOver ? 0.8f : 1f;
-		RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), inDim ? 1.0F : 0.8F, tint * (friend ? 0.3f : 1.0f), 1.0F);
+		RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), tint * (inDim ? 1.0F : 0.8F), tint * (friend ? 0.3f : 1.0f), 1.0F);
 		context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, 2, 0, 5, 7, 128, 128);
 		RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
 		context.getMatrices().pop();
