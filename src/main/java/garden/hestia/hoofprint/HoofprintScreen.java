@@ -25,7 +25,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
-import net.minecraft.sound.BlockSoundGroup;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
@@ -561,10 +560,12 @@ public class HoofprintScreen extends Screen {
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		if (button == GLFW.GLFW_MOUSE_BUTTON_3) { // easter egg: knock
-			ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
-				BlockSoundGroup group = block.getSoundGroup(block.getDefaultState());
-				client.getSoundManager().play(PositionedSoundInstance.master(group.getHitSound(), 1.0F, 0.3F));
-			});
+			if (!ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
+				SoundEvent hit = block.getDefaultState().getFluidState().getFluid().getBucketFillSound().orElse(block.getDefaultState().getSoundGroup().getHitSound());
+				client.getSoundManager().play(PositionedSoundInstance.master(hit, 1.0F, 0.3F));
+			})) {
+				client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.BLOCK_HANGING_ROOTS_HIT, 1.0F, 0.3F));
+			}
 		} else if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
 			if (editingLandmark != null) { // discard
 				editingLandmark = null;
@@ -576,7 +577,12 @@ public class HoofprintScreen extends Screen {
 					builder.add(LandmarkComponentTypes.POS, new BlockPos(hoveredWorldX, y, hoveredWorldZ))
 						.add(LandmarkComponentTypes.NAME, block.getName())
 						.add(LandmarkComponentTypes.COLOR, ColorUtil.argbToABGR(block.getDefaultMapColor().getRenderColor(MapColor.Brightness.NORMAL)));
-					if (!block.asItem().getDefaultStack().isEmpty()) builder.add(LandmarkComponentTypes.STACK, block.asItem().getDefaultStack());
+					if (!block.asItem().getDefaultStack().isEmpty()) {
+						builder.add(LandmarkComponentTypes.STACK, block.asItem().getDefaultStack());
+					} else {
+						Item bucket = block.getDefaultState().getFluidState().getFluid().getBucketItem();
+						if (!bucket.getDefaultStack().isEmpty()) builder.add(LandmarkComponentTypes.STACK, bucket.getDefaultStack());
+					}
 					return builder;
 				}))) {
 					editingLandmark = Landmark.create(SurveyorClient.getClientUuid(), Identifier.of(Hoofprint.ID, "custom/%s/%s".formatted(hoveredWorldX, hoveredWorldZ)), b -> b.add(LandmarkComponentTypes.POS, new BlockPos(hoveredWorldX, 0, hoveredWorldZ)));
@@ -587,7 +593,7 @@ public class HoofprintScreen extends Screen {
 				editingLandmark.contains(LandmarkComponentTypes.COLOR) ? Optional.ofNullable(DyeColor.byFireworkColor(editingLandmark.get(LandmarkComponentTypes.COLOR))).map(d -> d.getName().toLowerCase()).orElse("#" + Integer.toHexString(0xFFFFFF & editingLandmark.get(LandmarkComponentTypes.COLOR)).toUpperCase()) : "white");
 			editingStyle = false;
 			updateEdited();
-			SoundEvent placeSound = Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK)).filter(s -> s.getItem() instanceof BlockItem).map(s -> ((BlockItem) s.getItem()).getBlock()).map(b -> b.getSoundGroup(b.getDefaultState()).getPlaceSound()).orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
+			SoundEvent placeSound = Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK)).filter(s -> s.getItem() instanceof BlockItem).map(s -> ((BlockItem) s.getItem()).getBlock()).map(b -> b.getDefaultState().getFluidState().getFluid().getBucketFillSound().orElse(b.getDefaultState().getSoundGroup().getPlaceSound())).orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
 			client.getSoundManager().play(PositionedSoundInstance.master(placeSound, 1.2F));
 			if (hasShiftDown()) saveLandmark();
 			return true;
