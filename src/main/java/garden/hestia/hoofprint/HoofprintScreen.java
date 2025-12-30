@@ -168,11 +168,10 @@ public class HoofprintScreen extends Screen {
 				Map<RegistryKey<World>, Integer> scales = Hoofprint.CONFIG.dimensions.getScales(MinecraftClient.getInstance().getNetworkHandler());
 				int newScale = scales.getOrDefault(dim, 0);
 				int oldScale = scales.getOrDefault(player.dimension(), 0);
-				if (newScale * oldScale > 0) {
-					double mult = newScale / (double) oldScale;
-					dimX = mult * dimX;
-					dimZ = mult * dimZ;
-				}
+				if (newScale * oldScale == 0) continue;
+				double mult = newScale / (double) oldScale;
+				dimX = mult * dimX;
+				dimZ = mult * dimZ;
 			}
 			double playerCenterX = renderToScreen(worldXToRenderX(dimX));
 			double playerCenterY = renderToScreen(worldZToRenderY(dimZ));
@@ -248,11 +247,10 @@ public class HoofprintScreen extends Screen {
 			Map<RegistryKey<World>, Integer> scales = Hoofprint.CONFIG.dimensions.getScales(MinecraftClient.getInstance().getNetworkHandler());
 			int newScale = scales.getOrDefault(dim, 0);
 			int oldScale = scales.getOrDefault(player.dimension(), 0);
-			if (newScale * oldScale > 0) {
-				double mult = newScale / (double) oldScale;
-				dimX = mult * dimX;
-				dimZ = mult * dimZ;
-			}
+			if (newScale * oldScale == 0) return;
+			double mult = newScale / (double) oldScale;
+			dimX = mult * dimX;
+			dimZ = mult * dimZ;
 		}
 		double playerScreenX = renderToScreen(worldXToRenderX(dimX));
 		double playerScreenY = renderToScreen(worldZToRenderY(dimZ));
