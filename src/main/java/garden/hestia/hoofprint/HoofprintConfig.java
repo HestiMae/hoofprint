@@ -4,22 +4,35 @@ import folk.sisby.kaleido.api.WrappedConfig;
 import folk.sisby.kaleido.lib.quiltconfig.api.annotations.Comment;
 import folk.sisby.kaleido.lib.quiltconfig.api.annotations.IntegerRange;
 import folk.sisby.kaleido.lib.quiltconfig.api.values.ValueMap;
+import folk.sisby.surveyor.client.SurveyorClient;
 import garden.hestia.hoofprint.util.ConstantLightMap;
+import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.world.World;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class HoofprintConfig extends WrappedConfig {
+	@Comment("Default scale / zoom level for terrain.")
+	@Comment("0 to use GUI scale, -1 to use half.")
+	@IntegerRange(min = -1, max = 10)
+	public int defaultScale = -1;
+
 	@Comment("Options to change the visuals of the map to be more or less vanilla-style.")
 	public Style style = new Style();
 
 	public static class Style implements Section {
 		@Comment("Whether to color the water based on biome.")
 		@Comment("Disable for a vanilla style.")
-		public boolean biomeWater = true;
+		public boolean biomeWater = false;
 
 		@Comment("Whether to color grass and foliage blocks based on biome.")
 		@Comment("Disable for a vanilla style.")
-		public boolean biomeFoliage = true;
+		public boolean biomeFoliage = false;
 
 		@Comment("How large of an area to blend biome colors for water and foliage.")
 		@Comment("Set to 0 for no blending. Higher is more performance intensive.")
@@ -28,15 +41,15 @@ public class HoofprintConfig extends WrappedConfig {
 
 		@Comment("Whether to override the base color of odd-colored blocks like stone, ice, and leaf variants.")
 		@Comment("Disable for a vanilla style.")
-		public boolean accurateColors = true;
+		public boolean accurateColors = false;
 
 		@Comment("Whether to render water as transparent, becoming more opaque in deep waters.")
 		@Comment("Disable for a vanilla style.")
-		public boolean transparentWater = true;
+		public boolean transparentWater = false;
 
 		@Comment("Whether to consider sky and block lighting when coloring map pixels.")
 		@Comment("Disable for a vanilla style.")
-		public boolean lighting = true;
+		public boolean lighting = false;
 
 		@Comment("What level of skylight to use when in cave mode.")
 		@IntegerRange(min = 0, max = 15)
@@ -61,6 +74,30 @@ public class HoofprintConfig extends WrappedConfig {
 	public Dimensions dimensions = new Dimensions();
 
 	public static class Dimensions implements Section {
+		@Comment("Cycle order and coordinate scales of each dimension.")
+		@Comment("If not 0, the relative position of the player will be shown.")
+		public Map<String, Integer> scales = ValueMap.builder(0)
+			.put("minecraft:overworld", 8)
+			.put("minecraft:the_nether", 1)
+			.put("minecraft:the_end", 0)
+			.build();
+
+		public List<RegistryKey<World>> getOrder(ClientPlayNetworkHandler handler) {
+			List<RegistryKey<World>> dims = new ArrayList<>(SurveyorClient.getSummaries(handler).keySet().stream().sorted(Comparator.comparing(RegistryKey::toString)).toList());
+			dims.removeIf(dim -> HoofprintMapStorage.get(dim).isEmpty());
+			scales.keySet().removeIf(v -> handler.getWorldKeys().stream().noneMatch(d -> d.getValue().toString().equals(v)));
+			dims.stream().filter(dim -> !scales.containsKey(dim.getValue().toString())).forEach(dim -> scales.put(dim.getValue().toString(), 0));
+			return dims.stream().sorted(Comparator.comparing(dim -> scales.keySet().stream().toList().indexOf(dim.getValue().toString()))).toList();
+		}
+
+		public Map<RegistryKey<World>, Integer> getScales(ClientPlayNetworkHandler handler) {
+			List<RegistryKey<World>> dims = new ArrayList<>(SurveyorClient.getSummaries(handler).keySet().stream().sorted(Comparator.comparing(RegistryKey::toString)).toList());
+			dims.removeIf(dim -> HoofprintMapStorage.get(dim).isEmpty());
+			scales.keySet().removeIf(v -> handler.getWorldKeys().stream().noneMatch(d -> d.getValue().toString().equals(v)));
+			dims.stream().filter(dim -> !scales.containsKey(dim.getValue().toString())).forEach(dim -> scales.put(dim.getValue().toString(), 0));
+			return dims.stream().collect(Collectors.toMap(k -> k, k -> scales.get(k.getValue().toString())));
+		}
+
 		@Comment("Which lightmap to use for dimensions not specified below.")
 		@Comment("This changes the color tone of the lighting, when lighting is enabled.")
 		public ConstantLightMap defaultLightmap = ConstantLightMap.DAY;

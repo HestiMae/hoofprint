@@ -1,14 +1,16 @@
 package garden.hestia.hoofprint;
 
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Table;
+import com.google.common.collect.Tables;
 import com.mojang.datafixers.util.Function3;
 import folk.sisby.surveyor.WorldSummary;
 import folk.sisby.surveyor.landmark.Landmark;
-import folk.sisby.surveyor.landmark.WorldLandmarks;
 import folk.sisby.surveyor.terrain.ChunkSummary;
 import folk.sisby.surveyor.terrain.LayerSummary;
 import folk.sisby.surveyor.terrain.RegionSummary;
-import folk.sisby.surveyor.terrain.WorldTerrainSummary;
+import folk.sisby.surveyor.terrain.WorldTerrain;
 import folk.sisby.surveyor.util.RegionPos;
 import folk.sisby.surveyor.util.RegistryPalette;
 import garden.hestia.hoofprint.util.ColorUtil;
@@ -16,19 +18,15 @@ import garden.hestia.hoofprint.util.ConstantLightMap;
 import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.client.world.ClientWorld;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
-import net.minecraft.world.gen.structure.Structure;
 
 import java.util.BitSet;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -50,7 +48,7 @@ public class HoofprintMapStorage {
 	public final Map<RegionPos, Identifier> caveRegionTextures = new ConcurrentHashMap<>();
 	public final Map<RegionPos, BitSet> terrainFilled = new ConcurrentHashMap<>();
 	public final Map<RegionPos, BitSet> terrainQueue = Collections.synchronizedMap(new LinkedHashMap<>());
-	public final Map<UUID, Map<Identifier, Landmark>> landmarks = new ConcurrentHashMap<>();
+	public final Table<UUID, Identifier, Landmark> landmarks = Tables.synchronizedTable(HashBasedTable.create());
 	public int minBlockX = 0;
 	public int maxBlockX = 0;
 	public int minBlockZ = 0;
@@ -64,13 +62,12 @@ public class HoofprintMapStorage {
 		INSTANCES.clear();
 	}
 
-	public void worldLoad(ClientWorld world, WorldSummary summary, ClientPlayerEntity player, Map<RegionPos, BitSet> terrain, Multimap<RegistryKey<Structure>, ChunkPos> structures, Multimap<UUID, Identifier> landmarks) {
-		terrainUpdated(world, summary.terrain(), WorldTerrainSummary.toKeys(terrain, player.getChunkPos()));
-		landmarksAdded(world, summary.landmarks(), landmarks);
+	public boolean isEmpty() {
+		return (regionTextures.isEmpty() && terrainQueue.isEmpty() && landmarks.isEmpty());
 	}
 
-	public void terrainUpdated(World world, WorldTerrainSummary worldTerrainSummary, Collection<ChunkPos> chunks) {
-		for (ChunkPos chunkPos : chunks) {
+	public void terrainUpdated(WorldSummary summary, Map<RegionPos, BitSet> chunks) {
+		for (ChunkPos chunkPos : RegionPos.regionsToChunks(chunks)) {
 			minBlockX = Math.min(minBlockX, chunkPos.getStartX());
 			maxBlockX = Math.max(maxBlockX, chunkPos.getEndX());
 			minBlockZ = Math.min(minBlockZ, chunkPos.getStartZ());
@@ -79,30 +76,27 @@ public class HoofprintMapStorage {
 		}
 	}
 
-	public void landmarksAdded(World world, WorldLandmarks worldLandmarks, Multimap<UUID, Identifier> landmarks) {
+	public void landmarksAdded(WorldSummary summary, Multimap<UUID, Identifier> landmarks) {
 		landmarks.forEach((uuid, id) -> {
-			Landmark landmark = worldLandmarks.get(uuid, id);
-			if (landmark != null) this.landmarks.computeIfAbsent(uuid, t -> new HashMap<>()).put(id, landmark);
+			Landmark landmark = summary.landmarks().get(uuid, id);
+			if (landmark != null) this.landmarks.put(uuid, id, landmark);
 		});
 	}
 
-	public void landmarksRemoved(World world, WorldLandmarks worldLandmarks, Multimap<UUID, Identifier> landmarks) {
-		landmarks.forEach((type, pos) -> {
-			this.landmarks.computeIfAbsent(type, t -> new HashMap<>()).remove(pos);
-			if (this.landmarks.get(type).isEmpty()) this.landmarks.remove(type);
-		});
+	public void landmarksRemoved(WorldSummary summary, Multimap<UUID, Identifier> landmarks) {
+		landmarks.forEach(this.landmarks::remove);
 	}
 
-	public void tick(World world) {
-		if (world.getTime() % Hoofprint.CONFIG.debug.ticksPerBake != 0) return;
+	public void tick(WorldSummary summary, long time) {
+		if (time % Hoofprint.CONFIG.debug.ticksPerBake != 0) return;
 		RegionPos rPos = terrainQueue.keySet().stream().findFirst().orElse(null);
 		if (rPos != null) {
-			bake(world, rPos, terrainQueue.remove(rPos));
+			bake(summary, rPos, terrainQueue.remove(rPos));
 		}
 	}
 
-	private void bake(World world, RegionPos rPos, BitSet changes) {
-		WorldTerrainSummary terrain = WorldSummary.of(world).terrain();
+	private void bake(WorldSummary summary, RegionPos rPos, BitSet changes) {
+		WorldTerrain terrain = summary.terrain();
 		if (terrain == null) return;
 		RegionSummary region = terrain.getRegion(rPos);
 		BitSet filledArea = terrainFilled.computeIfAbsent(rPos, s -> new BitSet(RegionPos.CHUNK_AREA));
@@ -110,16 +104,16 @@ public class HoofprintMapStorage {
 		if (changes.isEmpty()) return;
 		filledArea.or(changes);
 		if (Hoofprint.CONFIG.debug.logBaking) Hoofprint.LOGGER.info("[Hoofprint] Baking {} chunks to the map texture for region {}", changes.cardinality(), rPos);
-		ConstantLightMap lightMap = Hoofprint.CONFIG.dimensions.lightmaps.getOrDefault(world.getRegistryKey().getValue().toString(), Hoofprint.CONFIG.dimensions.defaultLightmap);
+		ConstantLightMap lightMap = Hoofprint.CONFIG.dimensions.lightmaps.getOrDefault(summary.dimension().getValue().toString(), Hoofprint.CONFIG.dimensions.defaultLightmap);
 		ChunkPos regionChunkOrigin = rPos.toChunk();
-		Integer maxY = Hoofprint.CONFIG.dimensions.ceilings.getOrDefault(world.getRegistryKey().getValue().toString(), null);
+		Integer maxY = Hoofprint.CONFIG.dimensions.ceilings.getOrDefault(summary.dimension().getValue().toString(), null);
 
 		LayerSummary.Raw[][] chunkSummaries = new LayerSummary.Raw[34][34];
 		LayerSummary.Raw[][] chunkBelowSummaries = new LayerSummary.Raw[34][34];
 
 		for (LayerConfiguration config : List.of(
-			new LayerConfiguration(chunkSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, regionTextures), (s, x, z) -> s == null ? null : s.toSingleLayer(null, maxY, world.getHeight()), maxY == null),
-			new LayerConfiguration(chunkBelowSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, caveRegionTextures), (s, x, z) -> this.belowLayerUsingCache(chunkSummaries, s, x, z, maxY, world.getHeight()), false)
+			new LayerConfiguration(chunkSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, regionTextures), (s, x, z) -> s == null ? null : s.toSingleLayer(null, maxY, 999), maxY == null),
+			new LayerConfiguration(chunkBelowSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, caveRegionTextures), (s, x, z) -> this.belowLayerUsingCache(chunkSummaries, s, x, z, maxY, 999), false)
 		)) {
 			for (int chunkX = 0; chunkX < 32; chunkX++) {
 				for (int chunkZ = 0; chunkZ < 32; chunkZ++) {

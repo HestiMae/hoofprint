@@ -11,12 +11,12 @@ import folk.sisby.surveyor.landmark.component.LandmarkComponentMap;
 import folk.sisby.surveyor.landmark.component.LandmarkComponentTypes;
 import folk.sisby.surveyor.terrain.ChunkSummary;
 import folk.sisby.surveyor.terrain.LayerSummary;
-import folk.sisby.surveyor.terrain.WorldTerrainSummary;
+import folk.sisby.surveyor.terrain.WorldTerrain;
 import folk.sisby.surveyor.util.RegionPos;
 import garden.hestia.hoofprint.util.ColorUtil;
 import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
 import net.minecraft.block.MapColor;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.sound.PositionedSoundInstance;
@@ -25,7 +25,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
-import net.minecraft.sound.BlockSoundGroup;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
@@ -36,6 +35,7 @@ import net.minecraft.util.math.*;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.border.WorldBorder;
+import org.apache.commons.lang3.text.WordUtils;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -51,7 +51,6 @@ public class HoofprintScreen extends Screen {
 	public static final Identifier BACKGROUND = Identifier.of("hoofprint", "map_background_checkerboard");
 	public static final Identifier BACKGROUND_DARK = Identifier.of("hoofprint", "map_background_checkerboard_dark");
 	private static final float PLAYER_ROTATION_STEPS = 16;
-	HoofprintMapStorage mapStorage;
 	private double centreX = 0;
 	private double centreZ = 0;
 	private Landmark hoveredLandmark = null;
@@ -70,6 +69,8 @@ public class HoofprintScreen extends Screen {
 	private boolean hideDecorations = false;
 	private PlayerSummary hoveredPlayer;
 	private int cursorFrame = 0;
+	private RegistryKey<World> dim;
+	private float switchFade = 0.0F;
 
 	public HoofprintScreen() {
 		super(Text.of("Hoofprint World Map"));
@@ -78,6 +79,8 @@ public class HoofprintScreen extends Screen {
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
 		super.render(context, mouseX, mouseY, delta);
+		switchFade = Math.max(0, switchFade - delta);
+		HoofprintMapStorage mapStorage = HoofprintMapStorage.get(dim);
 		context.getMatrices().push();
 		float scaleFactor = getScaleFactor();
 		context.getMatrices().scale(scaleFactor, scaleFactor, 1.0f);
@@ -126,41 +129,52 @@ public class HoofprintScreen extends Screen {
 
 		hoveredLandmark = null;
 		double bestDistance = Double.MAX_VALUE;
-		for (Map<Identifier, Landmark> map : this.mapStorage.landmarks.values()) {
-			for (Landmark landmark : map.values()) {
-				if (landmark == editingLandmark) continue;
-				BlockPos pos = landmark.get(LandmarkComponentTypes.POS);
-				if (hideDecorations) continue;
-				if (pos == null) {
-					Set<ChunkPos> chunks = RegionPos.regionsToChunks(landmark.getOrDefault(LandmarkComponentTypes.CHUNKS, new HashMap<>()));
-					for (ChunkPos chunk : chunks) {
-						double screenX = renderToScreen(worldXToRenderX(chunk.getStartX()));
-						double screenY = renderToScreen(worldZToRenderY(chunk.getStartZ()));
-						boolean isInside = hoveredScreenX >= screenX && hoveredScreenX < screenX + 16 * scaleFactor && hoveredScreenY >= screenY && hoveredScreenY < screenY + 16 * scaleFactor;
-						if (!inspectMode && isInside && 10 < bestDistance) {
-							hoveredLandmark = landmark;
-							bestDistance = 10;
-						}
+		for (Landmark landmark : mapStorage.landmarks.values()) {
+			if (landmark == editingLandmark) continue;
+			BlockPos pos = landmark.get(LandmarkComponentTypes.POS);
+			if (hideDecorations) continue;
+			if (pos == null) {
+				Set<ChunkPos> chunks = RegionPos.regionsToChunks(landmark.getOrDefault(LandmarkComponentTypes.CHUNKS, new HashMap<>()));
+				for (ChunkPos chunk : chunks) {
+					double screenX = renderToScreen(worldXToRenderX(chunk.getStartX()));
+					double screenY = renderToScreen(worldZToRenderY(chunk.getStartZ()));
+					boolean isInside = hoveredScreenX >= screenX && hoveredScreenX < screenX + 16 * scaleFactor && hoveredScreenY >= screenY && hoveredScreenY < screenY + 16 * scaleFactor;
+					if (!inspectMode && isInside && 10 < bestDistance) {
+						hoveredLandmark = landmark;
+						bestDistance = 10;
 					}
-					continue;
 				}
-				double landmarkCenterX = renderToScreen(worldXToRenderX(pos.getX()));
-				double landmarkCenterY = renderToScreen(worldZToRenderY(pos.getZ()));
-				double mouseDistance = (hoveredScreenX - landmarkCenterX) * (hoveredScreenX - landmarkCenterX) + (hoveredScreenY - landmarkCenterY) * (hoveredScreenY - landmarkCenterY);
-				if (!inspectMode && mouseDistance < (6 * 6 * client.getWindow().getScaleFactor()) && mouseDistance < bestDistance) {
-					hoveredLandmark = landmark;
-					bestDistance = mouseDistance;
-				}
+				continue;
+			}
+			double landmarkCenterX = renderToScreen(worldXToRenderX(pos.getX()));
+			double landmarkCenterY = renderToScreen(worldZToRenderY(pos.getZ()));
+			double mouseDistance = (hoveredScreenX - landmarkCenterX) * (hoveredScreenX - landmarkCenterX) + (hoveredScreenY - landmarkCenterY) * (hoveredScreenY - landmarkCenterY);
+			if (!inspectMode && mouseDistance < (6 * 6 * client.getWindow().getScaleFactor()) && mouseDistance < bestDistance) {
+				hoveredLandmark = landmark;
+				bestDistance = mouseDistance;
 			}
 		}
 
-		RegistryKey<World> dim = client.world != null ? client.world.getRegistryKey() : null;
-
 		hoveredPlayer = null;
-		for (PlayerSummary player : SurveyorClient.getFriends().values()) {
-			if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations) continue;
-			double playerCenterX = renderToScreen(worldXToRenderX(player.pos().getX()));
-			double playerCenterY = renderToScreen(worldZToRenderY(player.pos().getZ()));
+		for (Map.Entry<UUID, PlayerSummary> entry : SurveyorClient.getFriends().entrySet()) {
+			UUID uuid = entry.getKey();
+			PlayerSummary player = entry.getValue();
+			boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
+			boolean inDim = player.dimension().equals(dim);
+			if ((friend && !inDim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations) continue;
+			double dimX = player.pos().getX();
+			double dimZ = player.pos().getZ();
+			if (!inDim) {
+				Map<RegistryKey<World>, Integer> scales = Hoofprint.CONFIG.dimensions.getScales(MinecraftClient.getInstance().getNetworkHandler());
+				int newScale = scales.getOrDefault(dim, 0);
+				int oldScale = scales.getOrDefault(player.dimension(), 0);
+				if (newScale * oldScale == 0) continue;
+				double mult = newScale / (double) oldScale;
+				dimX = mult * dimX;
+				dimZ = mult * dimZ;
+			}
+			double playerCenterX = renderToScreen(worldXToRenderX(dimX));
+			double playerCenterY = renderToScreen(worldZToRenderY(dimZ));
 			double mouseDistance = (hoveredScreenX - playerCenterX) * (hoveredScreenX - playerCenterX) + (hoveredScreenY - playerCenterY) * (hoveredScreenY - playerCenterY);
 			if (mouseDistance < (4 * 4 * client.getWindow().getScaleFactor()) && mouseDistance < bestDistance) {
 				hoveredLandmark = null;
@@ -169,9 +183,9 @@ public class HoofprintScreen extends Screen {
 			}
 		}
 
-		SurveyorClient.getFriends().forEach((uuid, player) -> renderPlayer(context, player, dim, uuid));
+		SurveyorClient.getFriends().forEach((uuid, player) -> renderPlayer(context, player, uuid));
 
-		this.mapStorage.landmarks.values().stream().flatMap(map -> map.values().stream()).filter(landmark -> editingLandmark == null || !landmark.id().equals(editingLandmark.id())).forEach(landmark -> renderLandmark(context, landmark, scaleFactor));
+		mapStorage.landmarks.values().stream().filter(landmark -> editingLandmark == null || !landmark.id().equals(editingLandmark.id())).forEach(landmark -> renderLandmark(context, landmark, scaleFactor));
 
 		// Tooltips
 		if (editingLandmark != null) {
@@ -217,21 +231,36 @@ public class HoofprintScreen extends Screen {
 		if (!mapStorage.terrainQueue.isEmpty()) {
 			context.drawText(this.textRenderer, Text.literal("Loading" + ".".repeat((cursorFrame / 8) % 4)).formatted(Formatting.GRAY), width-this.textRenderer.getWidth(Text.of("Loading...")), height - 10, 0xFFFFFF, false);
 		}
+		if (switchFade > 0) {
+			context.drawText(this.textRenderer, Text.literal(WordUtils.capitalizeFully(dim.getValue().getPath().replaceAll("[/_-]", " "))).formatted(Formatting.WHITE), 0, height - 10,  ColorHelper.Argb.getArgb(Math.min(255, (int) (255 * switchFade / 5.0)), 255, 255, 255), true);
+		}
 	}
 
-	private void renderPlayer(DrawContext context, PlayerSummary player, RegistryKey<World> dim, UUID uuid) {
-		if (!player.dimension().equals(dim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations) return;
-		double playerScreenX = renderToScreen(worldXToRenderX(player.pos().getX()));
-		double playerScreenY = renderToScreen(worldZToRenderY(player.pos().getZ()));
+	private void renderPlayer(DrawContext context, PlayerSummary player, UUID uuid) {
+		boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
+		boolean inDim = player.dimension().equals(dim);
+		if ((friend && !inDim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations) return;
+		double dimX = player.pos().getX();
+		double dimZ = player.pos().getZ();
+		if (!inDim) {
+			Map<RegistryKey<World>, Integer> scales = Hoofprint.CONFIG.dimensions.getScales(MinecraftClient.getInstance().getNetworkHandler());
+			int newScale = scales.getOrDefault(dim, 0);
+			int oldScale = scales.getOrDefault(player.dimension(), 0);
+			if (newScale * oldScale == 0) return;
+			double mult = newScale / (double) oldScale;
+			dimX = mult * dimX;
+			dimZ = mult * dimZ;
+		}
+		double playerScreenX = renderToScreen(worldXToRenderX(dimX));
+		double playerScreenY = renderToScreen(worldZToRenderY(dimZ));
 		boolean mouseOver = player == hoveredPlayer;
 		context.getMatrices().push();
 		context.getMatrices().translate(playerScreenX, playerScreenY, 0);
 		float playerRotation = ((float) Math.round(player.yaw() / 360f * PLAYER_ROTATION_STEPS) / PLAYER_ROTATION_STEPS) * 360f;
 		context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + playerRotation));
 		context.getMatrices().translate(-2.5, -3.5, 0);
-		boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
 		float tint = !player.online() ? 0.3f : mouseOver ? 0.8f : 1f;
-		RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), tint, tint * (friend ? 0.3f : 1.0f), 1.0F);
+		RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), tint * (inDim ? 1.0F : 0.8F), tint * (friend ? 0.3f : 1.0f), 1.0F);
 		context.drawTexture(Identifier.tryParse("textures/map/decorations/player.png"), 0, 0, 5, 7, 2, 0, 5, 7, 8, 8);
 		RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
 		context.getMatrices().pop();
@@ -302,31 +331,36 @@ public class HoofprintScreen extends Screen {
 
 	private boolean ifTerrainUnderCursor(FloorConsumer consumer) {
 		ChunkPos cp = new ColumnPos(hoveredWorldX, hoveredWorldZ).toChunkPos();
-		if (client == null || client.world == null) return false;
-		WorldTerrainSummary terrain = WorldSummary.of(client.world).terrain();
-		if (terrain == null) return false;
-		Integer maxY = Hoofprint.CONFIG.dimensions.ceilings.getOrDefault(client.world.getRegistryKey().getValue().toString(), null);
-		ChunkSummary summary = terrain.get(cp);
+		WorldSummary summary = SurveyorClient.tryGetSummary(dim);
 		if (summary == null) return false;
-		LayerSummary.Raw layer = summary.toSingleLayer(null, maxY, client.world.getHeight());
-		if (caveMode) layer = layer == null ? null : summary.toSingleLayerBelow(null, layer.depths(), client.world.getHeight());
+		WorldTerrain terrain = summary.terrain();
+		if (terrain == null) return false;
+		Integer maxY = Hoofprint.CONFIG.dimensions.ceilings.getOrDefault(dim.getValue().toString(), null);
+		ChunkSummary chunk = terrain.get(cp);
+		if (chunk == null) return false;
+		LayerSummary.Raw layer = chunk.toSingleLayer(null, maxY, 999);
+		if (caveMode) layer = layer == null ? null : chunk.toSingleLayerBelow(null, layer.depths(), 999);
 		if (layer == null) return false;
 		int blockIndex = (hoveredWorldX - cp.getStartX()) * 16 + (hoveredWorldZ - cp.getStartZ());
+		if (!layer.exists().get(blockIndex)) return false;
 		Block block = terrain.getBlockPalette(cp).get(layer.blocks()[blockIndex]);
 		Biome biome = terrain.getBiomePalette(cp).get(layer.biomes()[blockIndex]);
 		Identifier biomeId = terrain.getBiomePalette(cp).registry().getId(biome);
 		if (block == null || biome == null) return false;
-		consumer.accept(block, biome, biomeId, client.world.getHeight() - layer.depths()[blockIndex], layer.lightLevels()[blockIndex], layer.waterDepths()[blockIndex], layer.waterLights()[blockIndex]);
+		consumer.accept(block, biome, biomeId, 999 - layer.depths()[blockIndex], layer.lightLevels()[blockIndex], layer.waterDepths()[blockIndex], layer.waterLights()[blockIndex]);
 		return true;
+	}
+
+	public HoofprintMapStorage mapStorage() {
+		return HoofprintMapStorage.get(dim);
 	}
 
 	@Override
 	protected void init() {
-		RegistryKey<World> dim = client.world.getRegistryKey();
-		this.mapStorage = HoofprintMapStorage.get(dim);
+		this.dim = client.world.getRegistryKey();
 		this.centreX = client.player.getBlockX();
 		this.centreZ = client.player.getBlockZ();
-		this.guiScale = (int) client.getWindow().getScaleFactor();
+		this.guiScale = Hoofprint.CONFIG.defaultScale < 1 ? (int) (Math.ceil(client.getWindow().getScaleFactor() / (Hoofprint.CONFIG.defaultScale == -1 ? 2.0 : 1.0))) : Hoofprint.CONFIG.defaultScale;
 		client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_BOOK_PAGE_TURN, caveMode ? 0.8F : 1.0F));
 		super.init();
 	}
@@ -382,6 +416,21 @@ public class HoofprintScreen extends Screen {
 		} else {
 			styleValid = false;
 		}
+	}
+
+	private void changeDim(RegistryKey<World> newDim) {
+		Map<RegistryKey<World>, Integer> scales = Hoofprint.CONFIG.dimensions.getScales(MinecraftClient.getInstance().getNetworkHandler());
+		int newScale = scales.getOrDefault(newDim, 0);
+		int oldScale = scales.getOrDefault(this.dim, 0);
+		dim = newDim;
+		if (newScale * oldScale > 0) {
+			double mult = newScale / (double) oldScale;
+			centreX = mult * centreX;
+			centreZ = mult * centreZ;
+			guiScale = (int) MathHelper.clamp(guiScale / mult, 1, 10);
+		}
+		switchFade = 20;
+		client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_BOOK_PAGE_TURN, 1.1F));
 	}
 
 	@Override
@@ -458,11 +507,21 @@ public class HoofprintScreen extends Screen {
 				}
 			}
 			case GLFW.GLFW_KEY_DELETE -> {
-				if (client == null || client.world == null || client.player == null || hoveredLandmark == null || !WorldLandmarks.canModify (hoveredLandmark.owner(), client.world, null)) return true;
-				WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
+				if (hoveredLandmark == null || !SurveyorClient.canModify(hoveredLandmark.owner())) return true;
+				WorldSummary summary = SurveyorClient.tryGetSummary(dim);
+				if (summary == null) return true;
+				WorldLandmarks landmarks = summary.landmarks();
 				if (landmarks == null) return true;
 				client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.BLOCK_LAVA_POP, 2.0F));
-				landmarks.remove(client.world, hoveredLandmark.owner(), hoveredLandmark.id());
+				landmarks.remove(hoveredLandmark.owner(), hoveredLandmark.id());
+			}
+			case GLFW.GLFW_KEY_LEFT_BRACKET -> {
+				List<RegistryKey<World>> regKeys = Hoofprint.CONFIG.dimensions.getOrder(client.getNetworkHandler());
+				if (regKeys.contains(dim)) changeDim(regKeys.get((regKeys.size() + regKeys.indexOf(dim) - 1) % regKeys.size()));
+			}
+			case GLFW.GLFW_KEY_RIGHT_BRACKET -> {
+				List<RegistryKey<World>> regKeys = Hoofprint.CONFIG.dimensions.getOrder(client.getNetworkHandler());
+				if (regKeys.contains(dim)) changeDim(regKeys.get((regKeys.indexOf(dim) + 1) % regKeys.size()));
 			}
 			default -> {
 				return super.keyPressed(keyCode, scanCode, modifiers);
@@ -472,10 +531,12 @@ public class HoofprintScreen extends Screen {
 	}
 
 	private void saveLandmark() {
-		if (editingLandmark == null || client == null || client.world == null || client.player == null || !WorldLandmarks.canModify(editingLandmark.owner(), client.world, null)) return;
-		WorldLandmarks landmarks = WorldSummary.of(client.world).landmarks();
+		if (editingLandmark == null || !SurveyorClient.canModify(editingLandmark.owner())) return;
+		WorldSummary summary = SurveyorClient.tryGetSummary(dim);
+		if (summary == null) return;
+		WorldLandmarks landmarks = summary.landmarks();
 		if (landmarks == null) return;
-		landmarks.put(client.world, editingLandmark);
+		landmarks.put(editingLandmark);
 		editingLandmark = null;
 	}
 
@@ -496,22 +557,29 @@ public class HoofprintScreen extends Screen {
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		if (button == GLFW.GLFW_MOUSE_BUTTON_3) { // easter egg: knock
-			ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
-				BlockSoundGroup group = block.getDefaultState().getSoundGroup();
-				client.getSoundManager().play(PositionedSoundInstance.master(group.getHitSound(), 1.0F, 0.3F));
-			});
+			if (!ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
+				SoundEvent hit = block.getDefaultState().getFluidState().getFluid().getBucketFillSound().orElse(block.getDefaultState().getSoundGroup().getHitSound());
+				client.getSoundManager().play(PositionedSoundInstance.master(hit, 1.0F, 0.3F));
+			})) {
+				client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.BLOCK_HANGING_ROOTS_HIT, 1.0F, 0.3F));
+			}
 		} else if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
 			if (editingLandmark != null) { // discard
 				editingLandmark = null;
 				return true;
-			} else if (hoveredLandmark != null && WorldLandmarks.canModify(hoveredLandmark.owner(), client.world, null) && hoveredLandmark.contains(LandmarkComponentTypes.POS)) {
+			} else if (hoveredLandmark != null && SurveyorClient.canModify(hoveredLandmark.owner()) && hoveredLandmark.contains(LandmarkComponentTypes.POS)) {
 				editingLandmark = hoveredLandmark;
 			} else if (hoveredLandmark == null) {
 				if (!ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> editingLandmark = Landmark.create(SurveyorClient.getClientUuid(), Identifier.of("hoofprint", "block/%s/%s/%s".formatted(hoveredWorldX, y, hoveredWorldZ)), builder -> {
 					builder.add(LandmarkComponentTypes.POS, new BlockPos(hoveredWorldX, y, hoveredWorldZ))
 						.add(LandmarkComponentTypes.NAME, block.getName())
 						.add(LandmarkComponentTypes.COLOR, ColorUtil.argbToABGR(block.getDefaultMapColor().getRenderColor(MapColor.Brightness.NORMAL)));
-					if (!block.asItem().getDefaultStack().isEmpty()) builder.add(LandmarkComponentTypes.STACK, block.asItem().getDefaultStack());
+					if (!block.asItem().getDefaultStack().isEmpty()) {
+						builder.add(LandmarkComponentTypes.STACK, block.asItem().getDefaultStack());
+					} else {
+						Item bucket = block.getDefaultState().getFluidState().getFluid().getBucketItem();
+						if (!bucket.getDefaultStack().isEmpty()) builder.add(LandmarkComponentTypes.STACK, bucket.getDefaultStack());
+					}
 					return builder;
 				}))) {
 					editingLandmark = Landmark.create(SurveyorClient.getClientUuid(), Identifier.of(Hoofprint.ID, "custom/%s/%s".formatted(hoveredWorldX, hoveredWorldZ)), b -> b.add(LandmarkComponentTypes.POS, new BlockPos(hoveredWorldX, 0, hoveredWorldZ)));
@@ -522,7 +590,7 @@ public class HoofprintScreen extends Screen {
 				editingLandmark.contains(LandmarkComponentTypes.COLOR) ? Optional.ofNullable(DyeColor.byFireworkColor(editingLandmark.get(LandmarkComponentTypes.COLOR))).map(d -> d.getName().toLowerCase()).orElse("#" + Integer.toHexString(0xFFFFFF & editingLandmark.get(LandmarkComponentTypes.COLOR)).toUpperCase()) : "white");
 			editingStyle = false;
 			updateEdited();
-			SoundEvent placeSound = Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK)).filter(s -> s.getItem() instanceof BlockItem).map(s -> ((BlockItem) s.getItem()).getBlock().getDefaultState().getSoundGroup().getPlaceSound()).orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
+			SoundEvent placeSound = Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK)).filter(s -> s.getItem() instanceof BlockItem).map(s -> ((BlockItem) s.getItem()).getBlock()).map(b -> b.getDefaultState().getFluidState().getFluid().getBucketFillSound().orElse(b.getDefaultState().getSoundGroup().getPlaceSound())).orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
 			client.getSoundManager().play(PositionedSoundInstance.master(placeSound, 1.2F));
 			if (hasShiftDown()) saveLandmark();
 			return true;
@@ -534,8 +602,8 @@ public class HoofprintScreen extends Screen {
 	public void mouseMoved(double mouseX, double mouseY) {
 		hoveredScreenX = mouseX;
 		hoveredScreenY = mouseY;
-		hoveredWorldX = (int) Math.floor(screenXToWorldX(mouseX) + (screenXToWorldX(mouseX) < 0 ? 0.5 : -0.5)); // Dunno
-		hoveredWorldZ = (int) Math.floor(screenYToWorldZ(mouseY));
+		hoveredWorldX = MathHelper.floor(screenXToWorldX(mouseX));
+		hoveredWorldZ = MathHelper.floor(screenYToWorldZ(mouseY));
 		super.mouseMoved(mouseX, mouseY);
 	}
 
