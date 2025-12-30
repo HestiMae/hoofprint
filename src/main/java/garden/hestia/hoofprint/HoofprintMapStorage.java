@@ -112,8 +112,8 @@ public class HoofprintMapStorage {
 		LayerSummary.Raw[][] chunkBelowSummaries = new LayerSummary.Raw[34][34];
 
 		for (LayerConfiguration config : List.of(
-			new LayerConfiguration(chunkSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, "surface", regionTextures), (s, x, z) -> s == null ? null : s.toSingleLayer(null, maxY, 999), maxY == null),
-			new LayerConfiguration(chunkBelowSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, "cave", caveRegionTextures), (s, x, z) -> this.belowLayerUsingCache(chunkSummaries, s, x, z, maxY, 999), false)
+			new LayerConfiguration(chunkSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, summary, "surface", regionTextures), (s, x, z) -> s == null ? null : s.toSingleLayer(null, maxY, 999), maxY == null),
+			new LayerConfiguration(chunkBelowSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, summary, "cave", caveRegionTextures), (s, x, z) -> this.belowLayerUsingCache(chunkSummaries, s, x, z, maxY, 999), false)
 		)) {
 			for (int chunkX = 0; chunkX < 32; chunkX++) {
 				for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
@@ -159,9 +159,9 @@ public class HoofprintMapStorage {
 
 	record LayerConfiguration(LayerSummary.Raw[][] cache, int[][] waterColors, int[][] foliageColors, NativeImageBackedTexture texture, Function3<ChunkSummary, Integer, Integer, LayerSummary.Raw> flattener, boolean skyLight) {}
 
-	NativeImageBackedTexture getNativeTexture(RegionPos rPos, String qualifier, Map<RegionPos, Identifier> regionTextures) {
+	NativeImageBackedTexture getNativeTexture(RegionPos rPos, WorldSummary summary, String qualifier, Map<RegionPos, Identifier> regionTextures) {
 		Identifier textureId = regionTextures.computeIfAbsent(rPos, r -> {
-			Identifier inId = Identifier.of(Hoofprint.ID, "%s/%s/%s/%s".formatted(TEXTURE_PREFIX, qualifier, rPos.x(), rPos.z()));
+			Identifier inId = Identifier.of(Hoofprint.ID, "%s/%s/%s/%s/%s".formatted(TEXTURE_PREFIX, summary.dimension().getValue().toString().replace(":", "/"), qualifier, rPos.x(), rPos.z()));
 			MinecraftClient.getInstance().getTextureManager().registerTexture(inId, new NativeImageBackedTexture(inId.toString(), 512, 512, true));
 			return inId;
 		});
