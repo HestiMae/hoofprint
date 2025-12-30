@@ -1,6 +1,6 @@
 <!--suppress HtmlDeprecatedTag, XmlDeprecatedElement -->
 <center>
-<img alt="mod preview" src="https://cdn.modrinth.com/data/8O6iJpuJ/images/521486f2c1761f57930f9e3c3ae68f53e64f4322.png"/><br/>
+<img alt="mod preview" src="https://cdn.modrinth.com/data/8O6iJpuJ/images/757975b869379c0e5182f0d4b3e64be1cd1ea657.png"/><br/>
 A minimalist client-side world map.<br/>
 <b>Requires <a href="https://modrinth.com/mod/surveyor">Surveyor Map Framework</a>.</b>
 <b>Requires <a href="https://modrinth.com/mod/connector">Connector</a> and <a href="https://modrinth.com/mod/forgified-fabric-api">FFAPI</a> on forge.</b><br/>
@@ -32,6 +32,7 @@ _game-accurate style!_
 - `H` to hide all map decorations
 - `ALT` to view info about the block under the cursor (also shows waypoint names)
 - `TAB` to view the cave layer
+- `[` and `]` to view the previous/next dimension map
 
 ### Configuration
 
