@@ -585,8 +585,9 @@ public class HoofprintScreen extends Screen {
 				}))) {
 					editingLandmark = Landmark.create(SurveyorClient.getClientUuid(), Identifier.of(Hoofprint.ID, "custom/%s/%s".formatted(hoveredWorldX, hoveredWorldZ)), b -> b.add(LandmarkComponentTypes.POS, new BlockPos(hoveredWorldX, 0, hoveredWorldZ)));
 				}
+			} else {
+				return true;
 			}
-			if(editingLandmark == null) return true;
 			landmarkName = new StringBuilder(editingLandmark.getOrDefault(LandmarkComponentTypes.NAME, Text.empty()).getString());
 			landmarkStyle = new StringBuilder(editingLandmark.contains(LandmarkComponentTypes.STACK) ? Registries.ITEM.getId(editingLandmark.get(LandmarkComponentTypes.STACK).getItem()).toString().replace("minecraft:", "") :
 				editingLandmark.contains(LandmarkComponentTypes.COLOR) ? Optional.ofNullable(DyeColor.byFireworkColor(editingLandmark.get(LandmarkComponentTypes.COLOR))).map(d -> d.getName().toLowerCase()).orElse("#" + Integer.toHexString(0xFFFFFF & editingLandmark.get(LandmarkComponentTypes.COLOR)).toUpperCase()) : "white");
