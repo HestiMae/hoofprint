@@ -89,22 +89,47 @@ public class ColorUtil {
 		}
 	}
 
-	public static int blendColors(int[][] colors, int x, int z, int radius) {
-		if (radius == 0) return colors[x][z];
+	public static int hBlendColors(int[][] colors, int x, int z, int radius) {
 		long r = 0;
 		long g = 0;
 		long b = 0;
 		int num = 0;
 		for (int i = x - radius; i < x + radius; i++) {
-			for (int j = z - radius; j < z + radius; j++) {
-				// if ((x - i) * (x - i) + (z - j) * (z - j) > radius * radius) continue;
-				r += (colors[i][j] & 0xFF0000) >> 16;
-				g += (colors[i][j] & 0xFF00) >> 8;
-				b += colors[i][j] & 0xFF;
-				num += Math.min(Math.abs(colors[i][j]), 1);
-			}
+			r += (colors[i][z] & 0xFF0000) >> 16;
+			g += (colors[i][z] & 0xFF00) >> 8;
+			b += colors[i][z] & 0xFF;
+			num += Math.min(Math.abs(colors[i][z]), 1);
 		}
 		return Math.toIntExact((r / num & 0xFF) << 16 | (g / num & 0xFF) << 8 | b / num & 0xFF);
+	}
+
+	public static int vBlendColors(int[][] colors, int x, int z, int radius) {
+		long r = 0;
+		long g = 0;
+		long b = 0;
+		int num = 0;
+		for (int j = z - radius; j < z + radius; j++) {
+			r += (colors[x][j] & 0xFF0000) >> 16;
+			g += (colors[x][j] & 0xFF00) >> 8;
+			b += colors[x][j] & 0xFF;
+			num += Math.min(Math.abs(colors[x][j]), 1);
+		}
+		return Math.toIntExact((r / num & 0xFF) << 16 | (g / num & 0xFF) << 8 | b / num & 0xFF);
+	}
+
+	public static void gaussianBlur(int[][] colors, int blurRadius, int maxBlurRadius) {
+		if (blurRadius == 0) return;
+		int[][] colorsHBlur = new int[colors.length][colors[0].length];
+		for (int x = maxBlurRadius; x < colors.length - maxBlurRadius; x++) {
+			for (int z = 0; z < colors[0].length; z++) {
+				colorsHBlur[x][z] = ColorUtil.hBlendColors(colors, x, z, blurRadius);
+			}
+		}
+		for (int x = maxBlurRadius; x < colors.length - maxBlurRadius; x++) {
+			for (int z = maxBlurRadius; z < colors[0].length - maxBlurRadius; z++) {
+				colors[x][z] = ColorUtil.vBlendColors(colorsHBlur, x, z, blurRadius);
+			}
+		}
 	}
 
 	public static Function<Integer, Integer> getBiomeColorProvider(Block block) {

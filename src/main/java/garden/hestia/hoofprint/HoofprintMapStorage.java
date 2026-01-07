@@ -137,6 +137,9 @@ public class HoofprintMapStorage {
 							}
 						}
 					}
+					ColorUtil.gaussianBlur(config.waterColors, Hoofprint.CONFIG.style.blendRadius, 16);
+					ColorUtil.gaussianBlur(config.foliageColors, Hoofprint.CONFIG.style.blendRadius, 16);
+
 					RegistryPalette<Block>.ValueView blockPalette = region.getBlockPalette();
 					if (config.cache[chunkX + 1][chunkZ + 1] == null || blockPalette == null) continue;
 					int[][] colors = this.getColors(config.cache, config.waterColors, config.foliageColors, chunkX + 1, chunkZ + 1, blockPalette, lightMap, config.skyLight);
@@ -178,12 +181,12 @@ public class HoofprintMapStorage {
 				int color;
 				int waterColor;
 				if (!Hoofprint.CONFIG.style.transparentWater && layer.waterDepths()[i] > 0) {
-					color = Hoofprint.CONFIG.style.biomeWater ? ColorUtil.tint(WATER_TEXTURE_COLOR, ColorUtil.blendColors(waterColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.style.blendRadius)) : WATER_MAP_COLOR;
+					color = Hoofprint.CONFIG.style.biomeWater ? ColorUtil.tint(WATER_TEXTURE_COLOR, waterColors[16 * chunkX + x][16 * chunkZ + z]) : WATER_MAP_COLOR;
 				} else {
 					Block block = blockPalette.get(layer.blocks()[i]);
 					Function<Integer, Integer> foliageFunction = ColorUtil.getBiomeColorProvider(block);
 					if (foliageFunction != null) {
-						color = foliageFunction.apply(ColorUtil.blendColors(foliageColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.style.blendRadius));
+						color = foliageFunction.apply(foliageColors[16 * chunkX + x][16 * chunkZ + z]);
 					} else {
 						color = ColorUtil.getStaticBlockColor(block);
 					}
@@ -208,7 +211,7 @@ public class HoofprintMapStorage {
 					color = ColorUtil.tint(color, lightMap.getMap()[skyLight][blockLight]);
 				}
 				if (Hoofprint.CONFIG.style.transparentWater && layer.waterDepths()[i] > 0) {
-					waterColor = Hoofprint.CONFIG.style.biomeWater ? ColorUtil.tint(WATER_TEXTURE_COLOR, ColorUtil.blendColors(waterColors, 16 * chunkX + x, 16 * chunkZ + z, Hoofprint.CONFIG.style.blendRadius)) : applyBrightnessRGB(ColorUtil.Brightness.LOW, WATER_MAP_COLOR);
+					waterColor = Hoofprint.CONFIG.style.biomeWater ? ColorUtil.tint(WATER_TEXTURE_COLOR, waterColors[16 * chunkX + x][16 * chunkZ + z]) : applyBrightnessRGB(ColorUtil.Brightness.LOW, WATER_MAP_COLOR);
 					if (Hoofprint.CONFIG.style.lighting) {
 						int blockLight = layer.waterLights()[i];
 						int skyLight = hasSky ? ColorUtil.SKY_LIGHT : Hoofprint.CONFIG.style.ambientLight;
