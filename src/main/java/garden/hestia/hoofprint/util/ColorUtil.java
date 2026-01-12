@@ -1,10 +1,12 @@
 package garden.hestia.hoofprint.util;
 
+import folk.sisby.surveyor.util.RegionPos;
 import garden.hestia.hoofprint.Hoofprint;
 import net.minecraft.block.Block;
 import net.minecraft.client.color.world.FoliageColors;
 import net.minecraft.util.math.ColorHelper;
 
+import java.util.BitSet;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -117,16 +119,28 @@ public class ColorUtil {
 		return Math.toIntExact((r / num & 0xFF) << 16 | (g / num & 0xFF) << 8 | b / num & 0xFF);
 	}
 
-	public static void gaussianBlur(int[][] colors, int blurRadius, int maxBlurRadius) {
+	public static void gaussianBlur(int[][] colors, int blurRadius, int maxBlurRadius, BitSet outputChunks, BitSet loaded) {
 		if (blurRadius == 0) return;
 		int[][] colorsHBlur = new int[colors.length][colors[0].length];
 		for (int x = maxBlurRadius; x < colors.length - maxBlurRadius; x++) {
 			for (int z = 0; z < colors[0].length; z++) {
+				if ((z & 15) == 0 && !loaded.get(34 * (x >> 4) + (z >> 4)))
+				{
+					z += 15;
+					continue;
+				}
+				if (colors[x][z] == 0) continue;
 				colorsHBlur[x][z] = ColorUtil.hBlendColors(colors, x, z, blurRadius);
 			}
 		}
 		for (int x = maxBlurRadius; x < colors.length - maxBlurRadius; x++) {
 			for (int z = maxBlurRadius; z < colors[0].length - maxBlurRadius; z++) {
+				if ((z & 15) == 0 && !outputChunks.get(RegionPos.chunkToBit((x - maxBlurRadius) >> 4, (z - maxBlurRadius) >> 4)))
+				{
+					z += 15;
+					continue;
+				}
+				if (colorsHBlur[x][z] == 0) continue;
 				colors[x][z] = ColorUtil.vBlendColors(colorsHBlur, x, z, blurRadius);
 			}
 		}

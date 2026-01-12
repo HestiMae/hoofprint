@@ -115,6 +115,7 @@ public class HoofprintMapStorage {
 			new LayerConfiguration(chunkSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, regionTextures), (s, x, z) -> s == null ? null : s.toSingleLayer(null, maxY, 999), maxY == null),
 			new LayerConfiguration(chunkBelowSummaries, new int[544][544], new int[544][544], getNativeTexture(rPos, caveRegionTextures), (s, x, z) -> this.belowLayerUsingCache(chunkSummaries, s, x, z, maxY, 999), false)
 		)) {
+			BitSet loaded = new BitSet(1156);
 			for (int chunkX = 0; chunkX < 32; chunkX++) {
 				for (int chunkZ = 0; chunkZ < 32; chunkZ++) {
 					if (!changes.get(RegionPos.chunkToBit(chunkX, chunkZ))) continue;
@@ -124,6 +125,7 @@ public class HoofprintMapStorage {
 								ChunkPos layerPos = new ChunkPos(regionChunkOrigin.x + chunkX + x, regionChunkOrigin.z + chunkZ + z);
 								LayerSummary.Raw layer = config.flattener.apply(terrain.get(layerPos), chunkX + x, chunkZ + z);
 								if (layer == null) continue;
+								loaded.set((chunkX + x + 1) * 34 + chunkZ + z + 1);
 								config.cache[chunkX + 1 + x][chunkZ + 1 + z] = layer;
 								RegistryPalette<Biome>.ValueView biomePalette = terrain.getRegion(RegionPos.of(layerPos)).getBiomePalette();
 								for (int i = 0; i < 16; i++) {
@@ -137,8 +139,8 @@ public class HoofprintMapStorage {
 							}
 						}
 					}
-					ColorUtil.gaussianBlur(config.waterColors, Hoofprint.CONFIG.style.blendRadius, 16);
-					ColorUtil.gaussianBlur(config.foliageColors, Hoofprint.CONFIG.style.blendRadius, 16);
+					ColorUtil.gaussianBlur(config.waterColors, Hoofprint.CONFIG.style.blendRadius, 16, changes, loaded);
+					ColorUtil.gaussianBlur(config.foliageColors, Hoofprint.CONFIG.style.blendRadius, 16, changes, loaded);
 
 					RegistryPalette<Block>.ValueView blockPalette = region.getBlockPalette();
 					if (config.cache[chunkX + 1][chunkZ + 1] == null || blockPalette == null) continue;
