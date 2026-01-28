@@ -173,8 +173,8 @@ public class HoofprintScreen extends Screen {
 				dimX = mult * dimX;
 				dimZ = mult * dimZ;
 			}
-			double playerCenterX = renderToScreen(worldXToRenderX(dimX));
-			double playerCenterY = renderToScreen(worldZToRenderY(dimZ));
+			double playerCenterX = clampScreenX(renderToScreen(worldXToRenderX(dimX)));
+			double playerCenterY = clampScreenY(renderToScreen(worldZToRenderY(dimZ)));
 			double mouseDistance = (hoveredScreenX - playerCenterX) * (hoveredScreenX - playerCenterX) + (hoveredScreenY - playerCenterY) * (hoveredScreenY - playerCenterY);
 			if (mouseDistance < (4 * 4 * client.getWindow().getScaleFactor()) && mouseDistance < bestDistance) {
 				hoveredLandmark = null;
@@ -252,17 +252,36 @@ public class HoofprintScreen extends Screen {
 			dimX = mult * dimX;
 			dimZ = mult * dimZ;
 		}
+
 		double playerScreenX = renderToScreen(worldXToRenderX(dimX));
 		double playerScreenY = renderToScreen(worldZToRenderY(dimZ));
+
+		double clampedX = clampScreenX(playerScreenX);
+		double clampedY = clampScreenY(playerScreenY);
+
 		boolean mouseOver = player == hoveredPlayer;
 		context.getMatrices().push();
-		context.getMatrices().translate(playerScreenX, playerScreenY, 0);
-		float playerRotation = ((float) Math.round(player.yaw() / 360f * PLAYER_ROTATION_STEPS) / PLAYER_ROTATION_STEPS) * 360f;
-		context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + playerRotation));
-		context.getMatrices().translate(-2.5, -3.5, 0);
+		boolean clipped = clampedX != playerScreenX || clampedY != playerScreenY;
+		context.getMatrices().translate(clampedX, clampedY, 0);
 		float tint = !player.online() ? 0.3f : mouseOver ? 0.8f : 1f;
 		RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), tint * (inDim ? 1.0F : 0.8F), tint * (friend ? 0.3f : 1.0f), 1.0F);
-		context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, 2, 0, 5, 7, 128, 128);
+
+		if (Math.abs(playerScreenX - clampedX) > width || Math.abs(playerScreenY - clampedY) > height)
+		{
+			context.getMatrices().translate(-2, -2, 0);
+			context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 4, 4, 58, 2, 4, 4, 128, 128);
+		}
+		else if (clipped)
+		{
+			context.getMatrices().translate(-3, -3, 0);
+			context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 6, 6, 49, 1, 6, 6, 128, 128);
+		}
+		else {
+			float playerRotation = ((float) Math.round(player.yaw() / 360f * PLAYER_ROTATION_STEPS) / PLAYER_ROTATION_STEPS) * 360f;
+			context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + playerRotation));
+			context.getMatrices().translate(-2.5, -3.5, 0);
+			context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 5, 7, 2, 0, 5, 7, 128, 128);
+		}
 		RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
 		context.getMatrices().pop();
 	}
@@ -669,5 +688,31 @@ public class HoofprintScreen extends Screen {
 
 	float getHeight() {
 		return height / getScaleFactor();
+	}
+
+	double clampScreenX(double x)
+	{
+		WorldBorder worldBorder = client.world.getWorldBorder();
+		double size = worldBorder.getSize();
+		HoofprintMapStorage mapStorage = HoofprintMapStorage.get(dim);
+		double borderX1 = renderToScreen(worldXToRenderX(Math.max((int) Math.floor(worldBorder.getCenterX() - size / 2.0), mapStorage.minBlockX)));
+		double borderX2 = renderToScreen(worldXToRenderX(Math.min((int) Math.ceil(worldBorder.getCenterX() + size / 2.0), mapStorage.maxBlockX)));
+
+		double minX = Math.min(borderX2, 0);
+		double maxX = Math.max(borderX1, width);
+		return MathHelper.clamp(x, minX, maxX);
+	}
+
+	double clampScreenY(double y)
+	{
+		WorldBorder worldBorder = client.world.getWorldBorder();
+		double size = worldBorder.getSize();
+		HoofprintMapStorage mapStorage = HoofprintMapStorage.get(dim);
+		double borderZ1 = renderToScreen(worldZToRenderY(Math.max((int) Math.floor(worldBorder.getCenterZ() - size / 2.0), mapStorage.minBlockZ)));
+		double borderZ2 = renderToScreen(worldZToRenderY(Math.min((int) Math.ceil(worldBorder.getCenterZ() + size / 2.0), mapStorage.maxBlockZ)));
+
+		double minY = Math.min(borderZ2, 0);
+		double maxY = Math.max(borderZ1, height);
+		return MathHelper.clamp(y, minY, maxY);
 	}
 }
