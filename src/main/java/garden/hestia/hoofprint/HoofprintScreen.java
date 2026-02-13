@@ -274,10 +274,10 @@ public class HoofprintScreen extends Screen {
 
 		if (Math.abs(playerScreenX - clampedX) > width || Math.abs(playerScreenY - clampedY) > height) {
 			context.getMatrices().translate(-2, -2, 0);
-			context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 4, 4, 58, 2, 4, 4, 128, 128);
+			context.drawTexture(Identifier.tryParse("textures/map/decorations/player_off_limits.png"), 0, 0, 4, 4, 2, 2, 4, 4, 8, 8);
 		} else if (clipped) {
 			context.getMatrices().translate(-3, -3, 0);
-			context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 6, 6, 49, 1, 6, 6, 128, 128);
+			context.drawTexture(Identifier.tryParse("textures/map/decorations/player_off_map.png"), 0, 0, 6, 6, 1, 1, 6, 6, 8, 8);
 		} else {
 			float playerRotation = ((float) Math.round(player.yaw() / 360f * PLAYER_ROTATION_STEPS) / PLAYER_ROTATION_STEPS) * 360f;
 			context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + playerRotation));
@@ -317,7 +317,7 @@ public class HoofprintScreen extends Screen {
 			context.getMatrices().translate(arrowX, arrowY, 0);
 			context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotation((float) (Math.PI + angle)));
 			context.getMatrices().translate(-3.5, -4, 0);
-			context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 7, 8, 41, 0, 7, 8, 128, 128);
+			context.drawTexture(Identifier.tryParse("textures/map/decorations/target_point.png"), 0, 0, 7, 8, 1, 0, 7, 8, 8, 8);
 			RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
 			context.getMatrices().pop();
 		}
