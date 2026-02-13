@@ -161,7 +161,8 @@ public class HoofprintScreen extends Screen {
 			PlayerSummary player = entry.getValue();
 			boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
 			boolean inDim = player.dimension().equals(dim);
-			if ((friend && !inDim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations) continue;
+			if ((friend && !inDim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations)
+				continue;
 			double dimX = player.pos().getX();
 			double dimZ = player.pos().getZ();
 			if (!inDim) {
@@ -173,8 +174,8 @@ public class HoofprintScreen extends Screen {
 				dimX = mult * dimX;
 				dimZ = mult * dimZ;
 			}
-			double playerCenterX = renderToScreen(worldXToRenderX(dimX));
-			double playerCenterY = renderToScreen(worldZToRenderY(dimZ));
+			double playerCenterX = clampScreenX(renderToScreen(worldXToRenderX(dimX)));
+			double playerCenterY = clampScreenY(renderToScreen(worldZToRenderY(dimZ)));
 			double mouseDistance = (hoveredScreenX - playerCenterX) * (hoveredScreenX - playerCenterX) + (hoveredScreenY - playerCenterY) * (hoveredScreenY - playerCenterY);
 			if (mouseDistance < (4 * 4 * client.getWindow().getScaleFactor()) && mouseDistance < bestDistance) {
 				hoveredLandmark = null;
@@ -184,6 +185,8 @@ public class HoofprintScreen extends Screen {
 		}
 
 		SurveyorClient.getFriends().forEach((uuid, player) -> renderPlayer(context, player, uuid));
+
+		renderOffscreenMapArrow(context);
 
 		mapStorage.landmarks.values().stream().filter(landmark -> editingLandmark == null || !landmark.id().equals(editingLandmark.id())).forEach(landmark -> renderLandmark(context, landmark, scaleFactor));
 
@@ -208,7 +211,8 @@ public class HoofprintScreen extends Screen {
 				if (!ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
 					tooltipLines.add(Text.of("x: %d, y: %d, z: %d".formatted(hoveredWorldX, y, hoveredWorldZ)));
 					tooltipLines.add(block.getName());
-					if (biomeId != null) tooltipLines.add(Text.translatable("biome.%s.%s".formatted(biomeId.getNamespace(), biomeId.getPath())));
+					if (biomeId != null)
+						tooltipLines.add(Text.translatable("biome.%s.%s".formatted(biomeId.getNamespace(), biomeId.getPath())));
 					if (waterDepth > 0) tooltipLines.add(Text.of("Water: %d blocks".formatted(waterDepth)));
 					if (lightLevel > 0) tooltipLines.add(Text.of("Block Light: %d".formatted(lightLevel)));
 					if (waterLight > 0) tooltipLines.add(Text.of("Water Surface Light: %d".formatted(waterLight)));
@@ -220,8 +224,10 @@ public class HoofprintScreen extends Screen {
 				context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), 0, 0);
 			} else if (hoveredLandmark != null) {
 				List<Text> tooltipLines = new ArrayList<>();
-				if (hoveredLandmark.contains(LandmarkComponentTypes.NAME)) tooltipLines.add(hoveredLandmark.get(LandmarkComponentTypes.NAME));
-				if (hoveredLandmark.contains(LandmarkComponentTypes.LORE)) tooltipLines.addAll(hoveredLandmark.get(LandmarkComponentTypes.LORE).stream().map(t -> t.copy().formatted(Formatting.GRAY)).toList());
+				if (hoveredLandmark.contains(LandmarkComponentTypes.NAME))
+					tooltipLines.add(hoveredLandmark.get(LandmarkComponentTypes.NAME));
+				if (hoveredLandmark.contains(LandmarkComponentTypes.LORE))
+					tooltipLines.addAll(hoveredLandmark.get(LandmarkComponentTypes.LORE).stream().map(t -> t.copy().formatted(Formatting.GRAY)).toList());
 				if (!tooltipLines.isEmpty()) {
 					context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
 				}
@@ -229,17 +235,18 @@ public class HoofprintScreen extends Screen {
 			context.getMatrices().pop();
 		}
 		if (!mapStorage.terrainQueue.isEmpty()) {
-			context.drawText(this.textRenderer, Text.literal("Loading" + ".".repeat((cursorFrame / 8) % 4)).formatted(Formatting.GRAY), width-this.textRenderer.getWidth(Text.of("Loading...")), height - 10, 0xFFFFFF, false);
+			context.drawText(this.textRenderer, Text.literal("Loading" + ".".repeat((cursorFrame / 8) % 4)).formatted(Formatting.GRAY), width - this.textRenderer.getWidth(Text.of("Loading...")), height - 10, 0xFFFFFF, false);
 		}
 		if (switchFade > 0) {
-			context.drawText(this.textRenderer, Text.literal(WordUtils.capitalizeFully(dim.getValue().getPath().replaceAll("[/_-]", " "))).formatted(Formatting.WHITE), 0, height - 10,  ColorHelper.Argb.getArgb(Math.min(255, (int) (255 * switchFade / 5.0)), 255, 255, 255), true);
+			context.drawText(this.textRenderer, Text.literal(WordUtils.capitalizeFully(dim.getValue().getPath().replaceAll("[/_-]", " "))).formatted(Formatting.WHITE), 0, height - 10, ColorHelper.Argb.getArgb(Math.min(255, (int) (255 * switchFade / 5.0)), 255, 255, 255), true);
 		}
 	}
 
 	private void renderPlayer(DrawContext context, PlayerSummary player, UUID uuid) {
 		boolean friend = !SurveyorClient.getClientUuid().equals(uuid);
 		boolean inDim = player.dimension().equals(dim);
-		if ((friend && !inDim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations) return;
+		if ((friend && !inDim) || (!player.online() && !Hoofprint.CONFIG.style.offlinePlayers) || hideDecorations)
+			return;
 		double dimX = player.pos().getX();
 		double dimZ = player.pos().getZ();
 		if (!inDim) {
@@ -251,19 +258,69 @@ public class HoofprintScreen extends Screen {
 			dimX = mult * dimX;
 			dimZ = mult * dimZ;
 		}
+
 		double playerScreenX = renderToScreen(worldXToRenderX(dimX));
 		double playerScreenY = renderToScreen(worldZToRenderY(dimZ));
+
+		double clampedX = clampScreenX(playerScreenX);
+		double clampedY = clampScreenY(playerScreenY);
+
 		boolean mouseOver = player == hoveredPlayer;
 		context.getMatrices().push();
-		context.getMatrices().translate(playerScreenX, playerScreenY, 0);
-		float playerRotation = ((float) Math.round(player.yaw() / 360f * PLAYER_ROTATION_STEPS) / PLAYER_ROTATION_STEPS) * 360f;
-		context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + playerRotation));
-		context.getMatrices().translate(-2.5, -3.5, 0);
+		boolean clipped = clampedX != playerScreenX || clampedY != playerScreenY;
+		context.getMatrices().translate(clampedX, clampedY, 0);
 		float tint = !player.online() ? 0.3f : mouseOver ? 0.8f : 1f;
 		RenderSystem.setShaderColor(tint * (friend ? 0.0f : 1.0f), tint * (inDim ? 1.0F : 0.8F), tint * (friend ? 0.3f : 1.0f), 1.0F);
-		context.drawTexture(Identifier.tryParse("textures/map/decorations/player.png"), 0, 0, 5, 7, 2, 0, 5, 7, 8, 8);
+
+		if (Math.abs(playerScreenX - clampedX) > width || Math.abs(playerScreenY - clampedY) > height) {
+			context.getMatrices().translate(-2, -2, 0);
+			context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 4, 4, 58, 2, 4, 4, 128, 128);
+		} else if (clipped) {
+			context.getMatrices().translate(-3, -3, 0);
+			context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 6, 6, 49, 1, 6, 6, 128, 128);
+		} else {
+			float playerRotation = ((float) Math.round(player.yaw() / 360f * PLAYER_ROTATION_STEPS) / PLAYER_ROTATION_STEPS) * 360f;
+			context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180 + playerRotation));
+			context.getMatrices().translate(-2.5, -3.5, 0);
+			context.drawTexture(Identifier.tryParse("textures/map/decorations/player.png"), 0, 0, 5, 7, 2, 0, 5, 7, 8, 8);
+		}
 		RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
 		context.getMatrices().pop();
+	}
+
+	private void renderOffscreenMapArrow(DrawContext context) {
+		WorldBorder worldBorder = client.world.getWorldBorder();
+		double size = worldBorder.getSize();
+		HoofprintMapStorage mapStorage = HoofprintMapStorage.get(dim);
+		double mapX = mapCentreX(worldBorder, mapStorage, size);
+
+		double mapY = mapCentreY(worldBorder, mapStorage, size);
+		double mapBorderX1 = mapBorderX1(worldBorder, mapStorage, size);
+		double mapBorderX2 = mapBorderX2(worldBorder, mapStorage, size);
+		double mapBorderZ1 = mapBorderZ1(worldBorder, mapStorage, size);
+		double mapBorderZ2 = mapBorderZ2(worldBorder, mapStorage, size);
+		double arrowX = MathHelper.clamp(mapX, 8, width - 8);
+		double arrowY = MathHelper.clamp(mapY, 8, height - 8);
+
+
+		boolean mapOffscreen = mapBorderX2 < 0 || mapBorderX1 > width || mapBorderZ2 < 0 || mapBorderZ1 > height;
+
+
+		if (mapOffscreen) {
+			double yFromCentre = mapY - (double) height / 2;
+			double xFromCentre = mapX - ((double) width / 2);
+			double angle = Math.acos(-yFromCentre / Math.sqrt((xFromCentre * xFromCentre + yFromCentre * yFromCentre)));
+			if (mapX < (double) width / 2) {
+				angle = 2 * Math.PI - angle;
+			}
+			context.getMatrices().push();
+			context.getMatrices().translate(arrowX, arrowY, 0);
+			context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotation((float) (Math.PI + angle)));
+			context.getMatrices().translate(-3.5, -4, 0);
+			context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 7, 8, 41, 0, 7, 8, 128, 128);
+			RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+			context.getMatrices().pop();
+		}
 	}
 
 	private void renderLandmark(DrawContext context, Landmark landmark, float scaleFactor) {
@@ -279,7 +336,7 @@ public class HoofprintScreen extends Screen {
 				int color = 0xFF_000000 | ColorUtil.applyBrightnessRGB(hoveredLandmark == landmark ? ColorUtil.Brightness.HIGH : ColorUtil.Brightness.NORMAL, landmark.getOrDefault(LandmarkComponentTypes.COLOR, 0xFFFFFF));
 				context.fill(0, 0, 16, 16, 0x44FFFFFF & color);
 				if (!chunks.contains(new ChunkPos(chunk.x - 1, chunk.z))) context.fill(0, 0, 1, 16, color);
-				if (!chunks.contains(new ChunkPos(chunk.x , chunk.z - 1))) context.fill(0, 0, 16, 1, color);
+				if (!chunks.contains(new ChunkPos(chunk.x, chunk.z - 1))) context.fill(0, 0, 16, 1, color);
 				if (!chunks.contains(new ChunkPos(chunk.x + 1, chunk.z))) context.fill(15, 0, 16, 16, color);
 				if (!chunks.contains(new ChunkPos(chunk.x, chunk.z + 1))) context.fill(0, 15, 16, 16, color);
 				context.getMatrices().pop();
@@ -467,7 +524,8 @@ public class HoofprintScreen extends Screen {
 				}
 				case GLFW.GLFW_KEY_BACKSPACE -> {
 					StringBuilder editing = editingStyle ? landmarkStyle : landmarkName;
-					if (!editing.isEmpty()) editing.deleteCharAt((editingStyle ? landmarkStyle : landmarkName).length() - 1);
+					if (!editing.isEmpty())
+						editing.deleteCharAt((editingStyle ? landmarkStyle : landmarkName).length() - 1);
 					updateEdited();
 				}
 				default -> {
@@ -517,7 +575,8 @@ public class HoofprintScreen extends Screen {
 			}
 			case GLFW.GLFW_KEY_LEFT_BRACKET -> {
 				List<RegistryKey<World>> regKeys = Hoofprint.CONFIG.dimensions.getOrder(client.getNetworkHandler());
-				if (regKeys.contains(dim)) changeDim(regKeys.get((regKeys.size() + regKeys.indexOf(dim) - 1) % regKeys.size()));
+				if (regKeys.contains(dim))
+					changeDim(regKeys.get((regKeys.size() + regKeys.indexOf(dim) - 1) % regKeys.size()));
 			}
 			case GLFW.GLFW_KEY_RIGHT_BRACKET -> {
 				List<RegistryKey<World>> regKeys = Hoofprint.CONFIG.dimensions.getOrder(client.getNetworkHandler());
@@ -578,7 +637,8 @@ public class HoofprintScreen extends Screen {
 						builder.add(LandmarkComponentTypes.STACK, block.asItem().getDefaultStack());
 					} else {
 						Item bucket = block.getDefaultState().getFluidState().getFluid().getBucketItem();
-						if (!bucket.getDefaultStack().isEmpty()) builder.add(LandmarkComponentTypes.STACK, bucket.getDefaultStack());
+						if (!bucket.getDefaultStack().isEmpty())
+							builder.add(LandmarkComponentTypes.STACK, bucket.getDefaultStack());
 					}
 					return builder;
 				}))) {
@@ -669,4 +729,61 @@ public class HoofprintScreen extends Screen {
 	float getHeight() {
 		return height / getScaleFactor();
 	}
+
+	double clampScreenX(double x) {
+		WorldBorder worldBorder = client.world.getWorldBorder();
+		double size = worldBorder.getSize();
+		HoofprintMapStorage mapStorage = HoofprintMapStorage.get(dim);
+		double borderX1 = renderToScreen(worldXToRenderX(Math.max((int) Math.floor(worldBorder.getCenterX() - size / 2.0), mapStorage.minBlockX)));
+		double borderX2 = renderToScreen(worldXToRenderX(Math.min((int) Math.ceil(worldBorder.getCenterX() + size / 2.0), mapStorage.maxBlockX)));
+
+		double minX = Math.min(borderX2, 0);
+		double maxX = Math.max(borderX1, width);
+		return MathHelper.clamp(x, minX, maxX);
+	}
+
+	double clampScreenY(double y) {
+		WorldBorder worldBorder = client.world.getWorldBorder();
+		double size = worldBorder.getSize();
+		HoofprintMapStorage mapStorage = HoofprintMapStorage.get(dim);
+		double borderZ1 = renderToScreen(worldZToRenderY(Math.max((int) Math.floor(worldBorder.getCenterZ() - size / 2.0), mapStorage.minBlockZ)));
+		double borderZ2 = renderToScreen(worldZToRenderY(Math.min((int) Math.ceil(worldBorder.getCenterZ() + size / 2.0), mapStorage.maxBlockZ)));
+
+		double minY = Math.min(borderZ2, 0);
+		double maxY = Math.max(borderZ1, height);
+		return MathHelper.clamp(y, minY, maxY);
+	}
+
+	double mapBorderX1(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size) {
+		return renderToScreen(worldXToRenderX(Math.max((int) Math.floor(worldBorder.getCenterX() - size / 2.0), mapStorage.minBlockX)));
+	}
+
+	double mapBorderX2(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size) {
+		return renderToScreen(worldXToRenderX(Math.min((int) Math.floor(worldBorder.getCenterX() + size / 2.0), mapStorage.maxBlockX)));
+	}
+
+	double mapBorderZ1(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size) {
+		return renderToScreen(worldZToRenderY(Math.max((int) Math.floor(worldBorder.getCenterZ() - size / 2.0), mapStorage.minBlockZ)));
+	}
+
+	double mapBorderZ2(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size) {
+		return renderToScreen(worldZToRenderY(Math.min((int) Math.floor(worldBorder.getCenterZ() + size / 2.0), mapStorage.maxBlockZ)));
+	}
+
+
+	double mapCentreX(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size) {
+		double borderX1 = mapBorderX1(worldBorder, mapStorage, size);
+		double borderX2 = mapBorderX2(worldBorder, mapStorage, size);
+
+		return borderX1 + ((borderX2 - borderX1) / 2);
+	}
+
+	double mapCentreY(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size) {
+		double borderZ1 = mapBorderZ1(worldBorder, mapStorage, size);
+		double borderZ2 = mapBorderZ2(worldBorder, mapStorage, size);
+
+		return borderZ1 + ((borderZ2 - borderZ1) / 2);
+	}
+
+
 }
