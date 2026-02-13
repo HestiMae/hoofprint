@@ -289,8 +289,7 @@ public class HoofprintScreen extends Screen {
 		context.getMatrices().pop();
 	}
 
-	private void renderOffscreenMapArrow(DrawContext context)
-	{
+	private void renderOffscreenMapArrow(DrawContext context) {
 		WorldBorder worldBorder = client.world.getWorldBorder();
 		double size = worldBorder.getSize();
 		HoofprintMapStorage mapStorage = HoofprintMapStorage.get(dim);
@@ -308,18 +307,16 @@ public class HoofprintScreen extends Screen {
 		boolean mapOffscreen = mapBorderX2 < 0 || mapBorderX1 > width || mapBorderZ2 < 0 || mapBorderZ1 > height;
 
 
-		if (mapOffscreen)
-		{
+		if (mapOffscreen) {
 			double yFromCentre = mapY - (double) height / 2;
 			double xFromCentre = mapX - ((double) width / 2);
 			double angle = Math.acos(-yFromCentre / Math.sqrt((xFromCentre * xFromCentre + yFromCentre * yFromCentre)));
-			if (mapX < (double) width / 2)
-			{
+			if (mapX < (double) width / 2) {
 				angle = 2 * Math.PI - angle;
 			}
 			context.getMatrices().push();
 			context.getMatrices().translate(arrowX, arrowY, 0);
-			context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotation((float)(Math.PI + angle)));
+			context.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotation((float) (Math.PI + angle)));
 			context.getMatrices().translate(-3.5, -4, 0);
 			context.drawTexture(new Identifier("textures/map/map_icons.png"), 0, 0, 7, 8, 41, 0, 7, 8, 128, 128);
 			RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
@@ -758,39 +755,36 @@ public class HoofprintScreen extends Screen {
 		return MathHelper.clamp(y, minY, maxY);
 	}
 
-	double mapBorderX1(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size)
-	{
+	double mapBorderX1(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size) {
 		return renderToScreen(worldXToRenderX(Math.max((int) Math.floor(worldBorder.getCenterX() - size / 2.0), mapStorage.minBlockX)));
 	}
-	double mapBorderX2(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size)
-	{
+
+	double mapBorderX2(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size) {
 		return renderToScreen(worldXToRenderX(Math.min((int) Math.floor(worldBorder.getCenterX() + size / 2.0), mapStorage.maxBlockX)));
 	}
-	double mapBorderZ1(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size)
-	{
+
+	double mapBorderZ1(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size) {
 		return renderToScreen(worldZToRenderY(Math.max((int) Math.floor(worldBorder.getCenterZ() - size / 2.0), mapStorage.minBlockZ)));
 	}
-	double mapBorderZ2(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size)
-	{
+
+	double mapBorderZ2(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size) {
 		return renderToScreen(worldZToRenderY(Math.min((int) Math.floor(worldBorder.getCenterZ() + size / 2.0), mapStorage.maxBlockZ)));
 	}
 
 
-	double mapCentreX(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size)
-	{
+	double mapCentreX(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size) {
 		double borderX1 = mapBorderX1(worldBorder, mapStorage, size);
 		double borderX2 = mapBorderX2(worldBorder, mapStorage, size);
 
-		return  borderX1 + ((borderX2 - borderX1) / 2);
+		return borderX1 + ((borderX2 - borderX1) / 2);
 	}
-	double mapCentreY(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size)
-	{
+
+	double mapCentreY(WorldBorder worldBorder, HoofprintMapStorage mapStorage, double size) {
 		double borderZ1 = mapBorderZ1(worldBorder, mapStorage, size);
 		double borderZ2 = mapBorderZ2(worldBorder, mapStorage, size);
 
 		return borderZ1 + ((borderZ2 - borderZ1) / 2);
 	}
-
 
 
 }
