@@ -39,9 +39,9 @@ public class Hoofprint implements ClientModInitializer {
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register(HoofprintMapStorage::disconnect);
 
-		SurveyorClientEvents.Register.terrainUpdated(new Identifier(ID, "terrain_updated"), (summary, chunks) -> HoofprintMapStorage.get(summary.dimension()).terrainUpdated(summary, chunks));
-		SurveyorClientEvents.Register.landmarksAdded(new Identifier(ID, "landmarks_added"), (summary, landmarks) -> HoofprintMapStorage.get(summary.dimension()).landmarksAdded(summary, landmarks));
-		SurveyorClientEvents.Register.landmarksRemoved(new Identifier(ID, "landmarks_removed"), (summary, landmarks) -> HoofprintMapStorage.get(summary.dimension()).landmarksRemoved(summary, landmarks));
+		SurveyorClientEvents.Register.terrainUpdated(Identifier.of(ID, "terrain_updated"), (summary, chunks) -> HoofprintMapStorage.get(summary.dimension()).terrainUpdated(summary, chunks));
+		SurveyorClientEvents.Register.landmarksAdded(Identifier.of(ID, "landmarks_added"), (summary, landmarks) -> HoofprintMapStorage.get(summary.dimension()).landmarksAdded(summary, landmarks));
+		SurveyorClientEvents.Register.landmarksRemoved(Identifier.of(ID, "landmarks_removed"), (summary, landmarks) -> HoofprintMapStorage.get(summary.dimension()).landmarksRemoved(summary, landmarks));
 
 		LOGGER.info("[Hoofprint] They went thatta-way!");
 	}
