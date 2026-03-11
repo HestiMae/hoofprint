@@ -195,17 +195,17 @@ public class HoofprintScreen extends Screen {
 			renderLandmark(context, editingLandmark, scaleFactor);
 			double landmarkScreenX = renderToScreen(worldXToRenderX(editingLandmark.get(LandmarkComponentTypes.POS).getX()));
 			double landmarkScreenY = renderToScreen(worldZToRenderY(editingLandmark.get(LandmarkComponentTypes.POS).getZ()));
+			int tooltipScreenY = Math.max((int) landmarkScreenY, 12);
 			String cursor = List.of("|", "/", "-", "\\").get(cursorFrame / 10);
 			context.getMatrices().push();
-			context.getMatrices().translate(landmarkScreenX, landmarkScreenY, 0);
 			context.drawTooltip(this.textRenderer, List.of(
 				Text.empty().append(Text.literal(landmarkName.toString())).append(Text.literal(editingStyle ? "" : cursor).formatted(Formatting.GRAY)),
 				Text.empty().append(Text.literal(landmarkStyle.toString()).formatted(styleValid ? Formatting.WHITE : Formatting.RED)).append(Text.literal(editingStyle ? cursor : "").formatted(Formatting.GRAY))
-			), 0, 0);
+			), (int) landmarkScreenX, tooltipScreenY);
 			context.getMatrices().pop();
 		} else {
 			context.getMatrices().push();
-			context.getMatrices().translate(hoveredScreenX, hoveredScreenY, 0);
+			int tooltipScreenY = Math.max((int) hoveredScreenY, 15);
 			if (inspectMode) {
 				List<Text> tooltipLines = new ArrayList<>();
 				if (!ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
@@ -219,9 +219,9 @@ public class HoofprintScreen extends Screen {
 				})) {
 					tooltipLines.add(Text.of("x: %d, z: %d".formatted(hoveredWorldX, hoveredWorldZ)));
 				}
-				context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
+				context.drawTooltip(this.textRenderer, tooltipLines, (int) hoveredScreenX, tooltipScreenY);
 			} else if (hoveredPlayer != null && hoveredPlayer.username() != null) {
-				context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), 0, 0);
+				context.drawTooltip(this.textRenderer, Text.of(hoveredPlayer.username()), (int) hoveredScreenX, tooltipScreenY);
 			} else if (hoveredLandmark != null) {
 				List<Text> tooltipLines = new ArrayList<>();
 				if (hoveredLandmark.contains(LandmarkComponentTypes.NAME))
@@ -229,7 +229,7 @@ public class HoofprintScreen extends Screen {
 				if (hoveredLandmark.contains(LandmarkComponentTypes.LORE))
 					tooltipLines.addAll(hoveredLandmark.get(LandmarkComponentTypes.LORE).stream().map(t -> t.copy().formatted(Formatting.GRAY)).toList());
 				if (!tooltipLines.isEmpty()) {
-					context.drawTooltip(this.textRenderer, tooltipLines, 0, 0);
+					context.drawTooltip(this.textRenderer, tooltipLines, (int) hoveredScreenX, tooltipScreenY);
 				}
 			}
 			context.getMatrices().pop();
