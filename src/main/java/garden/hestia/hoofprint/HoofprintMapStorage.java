@@ -7,6 +7,11 @@ import com.google.common.collect.Tables;
 import com.mojang.datafixers.util.Function3;
 import folk.sisby.surveyor.WorldSummary;
 import folk.sisby.surveyor.landmark.Landmark;
+import folk.sisby.surveyor.landmark.WorldLandmarks;
+import folk.sisby.surveyor.landmark.component.LandmarkComponentMap;
+import folk.sisby.surveyor.landmark.component.LandmarkComponentType;
+import folk.sisby.surveyor.landmark.component.LandmarkComponentTypes;
+import folk.sisby.surveyor.structure.WorldStructures;
 import folk.sisby.surveyor.terrain.ChunkSummary;
 import folk.sisby.surveyor.terrain.LayerSummary;
 import folk.sisby.surveyor.terrain.RegionSummary;
@@ -18,13 +23,18 @@ import garden.hestia.hoofprint.util.ConstantLightMap;
 import net.minecraft.block.Block;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.resource.language.I18n;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
+import net.minecraft.world.gen.structure.Structure;
+import org.apache.commons.lang3.text.WordUtils;
 
 import java.util.BitSet;
 import java.util.Collections;
@@ -79,12 +89,35 @@ public class HoofprintMapStorage {
 	public void landmarksAdded(WorldSummary summary, Multimap<UUID, Identifier> landmarks) {
 		landmarks.forEach((uuid, id) -> {
 			Landmark landmark = summary.landmarks().get(uuid, id);
-			if (landmark != null) this.landmarks.put(uuid, id, landmark);
+			if (landmark != null) putLandmark(landmark);
 		});
 	}
 
 	public void landmarksRemoved(WorldSummary summary, Multimap<UUID, Identifier> landmarks) {
 		landmarks.forEach(this.landmarks::remove);
+	}
+
+	public void structuresAdded(WorldSummary summary, Multimap<RegistryKey<Structure>, ChunkPos> structures) {
+		structures.forEach((structureKey, structurePos) -> {
+			Identifier id = Identifier.of(Hoofprint.ID, "%s/%s/%s/%s".formatted(structureKey.getValue().getNamespace(), structureKey.getValue().getPath(), structurePos.x, structurePos.z));
+			BlockPos centre = summary.structures().get(structureKey, structurePos).getBoundingBox().getCenter();
+			String translationKey = structureKey.getValue().toTranslationKey("structure");
+			String fallback = summary.structures().getType(structureKey).getValue().toTranslationKey("structure");
+			Text name;
+			if (I18n.hasTranslation(translationKey)) {
+				name = Text.translatable(translationKey);
+			} else if (I18n.hasTranslation(fallback)) {
+				name = Text.translatable(fallback);
+			} else {
+				if (!Hoofprint.CONFIG.structures.displayFallback) return;
+				name = Text.of(WordUtils.capitalizeFully(structureKey.getValue().getPath().toString().replaceAll("[/-_]", " ")));
+			}
+			putLandmark(Landmark.create(WorldLandmarks.GLOBAL, id, b -> b.add(LandmarkComponentTypes.POS, centre).add(LandmarkComponentTypes.NAME, name)));
+		});
+	}
+
+	public void putLandmark(Landmark landmark) {
+		landmarks.put(landmark.owner(), landmark.id(), landmark);
 	}
 
 	public void tick(WorldSummary summary, long time) {
@@ -103,7 +136,8 @@ public class HoofprintMapStorage {
 		changes.andNot(filledArea); // Don't live update the existing map.
 		if (changes.isEmpty()) return;
 		filledArea.or(changes);
-		if (Hoofprint.CONFIG.debug.logBaking) Hoofprint.LOGGER.info("[Hoofprint] Baking {} chunks to the map texture for region {}", changes.cardinality(), rPos);
+		if (Hoofprint.CONFIG.debug.logBaking)
+			Hoofprint.LOGGER.info("[Hoofprint] Baking {} chunks to the map texture for region {}", changes.cardinality(), rPos);
 		ConstantLightMap lightMap = Hoofprint.CONFIG.dimensions.lightmaps.getOrDefault(summary.dimension().getValue().toString(), Hoofprint.CONFIG.dimensions.defaultLightmap);
 		ChunkPos regionChunkOrigin = rPos.toChunk();
 		Integer maxY = Hoofprint.CONFIG.dimensions.ceilings.getOrDefault(summary.dimension().getValue().toString(), null);
@@ -157,13 +191,17 @@ public class HoofprintMapStorage {
 		return s.toSingleLayerBelow(null, cache[x + 1][z + 1].depths(), worldHeight);
 	}
 
-	record LayerConfiguration(LayerSummary.Raw[][] cache, int[][] waterColors, int[][] foliageColors, NativeImageBackedTexture texture, Function3<ChunkSummary, Integer, Integer, LayerSummary.Raw> flattener, boolean skyLight) {}
+	record LayerConfiguration(LayerSummary.Raw[][] cache, int[][] waterColors, int[][] foliageColors,
+							  NativeImageBackedTexture texture,
+							  Function3<ChunkSummary, Integer, Integer, LayerSummary.Raw> flattener, boolean skyLight) {
+	}
 
 	NativeImageBackedTexture getNativeTexture(RegionPos rPos, Map<RegionPos, Identifier> regionTextures) {
 		Identifier textureId = regionTextures.computeIfAbsent(rPos, r -> MinecraftClient.getInstance().getTextureManager().registerDynamicTexture(TEXTURE_PREFIX, new NativeImageBackedTexture(512, 512, true)));
 		NativeImageBackedTexture terrainTexture = (NativeImageBackedTexture) MinecraftClient.getInstance().getTextureManager().getTexture(textureId);
 		NativeImage image = terrainTexture.getImage();
-		if (image == null) throw new IllegalStateException("[Hoofprint] WHO THREW OUT MY %s DYNAMIC TEXTURE".formatted(textureId));
+		if (image == null)
+			throw new IllegalStateException("[Hoofprint] WHO THREW OUT MY %s DYNAMIC TEXTURE".formatted(textureId));
 		return terrainTexture;
 	}
 

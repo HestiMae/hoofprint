@@ -137,4 +137,8 @@ public class HoofprintConfig extends WrappedConfig {
 		@Comment("I wonder what this could be?")
 		public KnockHint redHerring = KnockHint.TRY;
 	}
+	public Structures structures = new Structures();
+	public static class Structures implements Section {
+		public boolean displayFallback = true;
+	}
 }

@@ -1,4 +1,14 @@
 {
 	"key.hoofprint.open": "Open Map Screen",
-	"category.hoofprint": "Hoofprint"
+	"category.hoofprint": "Hoofprint",
+	"structure.minecraft.bastion_remnant": "Bastion Remnant",
+	"structure.minecraft.village_plains": "Plains Village",
+	"structure.minecraft.village_desert": "Desert Village",
+	"structure.minecraft.village_savanna": "Savanna Village",
+	"structure.minecraft.village_snowy": "Snowy Village",
+	"structure.minecraft.village_taiga": "Taiga Village",
+	"structure.minecraft.end_city": "End City",
+	"structure.minecraft.ocean_monument": "Ocean Monument",
+	"structure.minecraft.woodland_mansion": "Woodland Mansion",
+	"structure.minecraft.shipwreck": "Shipwreck"
 }
