@@ -5,7 +5,7 @@ import folk.sisby.surveyor.client.SurveyorClient;
 import folk.sisby.surveyor.client.SurveyorClientEvents;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
@@ -21,7 +21,7 @@ public class Hoofprint implements ClientModInitializer {
 	public static final String ID = "hoofprint";
 	public static final Logger LOGGER = LoggerFactory.getLogger(ID);
 	public static final HoofprintConfig CONFIG = HoofprintConfig.createToml(FabricLoader.getInstance().getConfigDir(), "", ID, HoofprintConfig.class);
-	public static final KeyBinding OPEN_MAP = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.hoofprint.open", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_M, "category.hoofprint"));
+	public static final KeyBinding OPEN_MAP = KeyMappingHelper.registerKeyMapping(new KeyBinding("key.hoofprint.open", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_M,  KeyBinding.Category.create(Identifier.of(ID, "map"))));
 
 	@Override
 	public void onInitializeClient() {
@@ -33,7 +33,7 @@ public class Hoofprint implements ClientModInitializer {
 				c.setScreen(new HoofprintScreen());
 			}
 		});
-		ClientTickEvents.END_WORLD_TICK.register((c) -> {
+		ClientTickEvents.END_LEVEL_TICK.register((c) -> {
 			ClientPlayNetworkHandler handler = MinecraftClient.getInstance().getNetworkHandler();
 			if (handler != null) SurveyorClient.getSummaries(handler).forEach((dim, summary) -> HoofprintMapStorage.get(dim).tick(summary, c.getTime()));
 		});

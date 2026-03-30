@@ -121,7 +121,7 @@ public class HoofprintMapStorage {
 					for (int x = -1; x <= 1; x++) {
 						for (int z = -1; z <= 1; z++) {
 							if (config.cache[chunkX + 1 + x][chunkZ + 1 + z] == null) { // Surrounding layers
-								ChunkPos layerPos = new ChunkPos(regionChunkOrigin.x + chunkX + x, regionChunkOrigin.z + chunkZ + z);
+								ChunkPos layerPos = new ChunkPos(regionChunkOrigin.x() + chunkX + x, regionChunkOrigin.z() + chunkZ + z);
 								LayerSummary.Raw layer = config.flattener.apply(terrain.get(layerPos), chunkX + x, chunkZ + z);
 								if (layer == null) continue;
 								config.cache[chunkX + 1 + x][chunkZ + 1 + z] = layer;

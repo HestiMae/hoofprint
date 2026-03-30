@@ -17,8 +17,11 @@ import net.minecraft.block.Block;
 import net.minecraft.block.MapColor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.CharInput;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.item.BlockItem;
@@ -327,10 +330,10 @@ public class HoofprintScreen extends Screen {
 				context.getMatrices().translate((float) worldXToRenderX(chunk.getStartX()), (float) worldZToRenderY(chunk.getStartZ()));
 				int color = 0xFF_000000 | ColorUtil.applyBrightnessRGB(hoveredLandmark == landmark ? ColorUtil.Brightness.HIGH : ColorUtil.Brightness.NORMAL, landmark.getOrDefault(LandmarkComponentTypes.COLOR, 0xFFFFFF));
 				context.fill(0, 0, 16, 16, 0x44FFFFFF & color);
-				if (!chunks.contains(new ChunkPos(chunk.x - 1, chunk.z))) context.fill(0, 0, 1, 16, color);
-				if (!chunks.contains(new ChunkPos(chunk.x, chunk.z - 1))) context.fill(0, 0, 16, 1, color);
-				if (!chunks.contains(new ChunkPos(chunk.x + 1, chunk.z))) context.fill(15, 0, 16, 16, color);
-				if (!chunks.contains(new ChunkPos(chunk.x, chunk.z + 1))) context.fill(0, 15, 16, 16, color);
+				if (!chunks.contains(new ChunkPos(chunk.x() - 1, chunk.z()))) context.fill(0, 0, 1, 16, color);
+				if (!chunks.contains(new ChunkPos(chunk.x(), chunk.z() - 1))) context.fill(0, 0, 16, 1, color);
+				if (!chunks.contains(new ChunkPos(chunk.x() + 1, chunk.z()))) context.fill(15, 0, 16, 16, color);
+				if (!chunks.contains(new ChunkPos(chunk.x(), chunk.z() + 1))) context.fill(0, 15, 16, 16, color);
 				context.getMatrices().popMatrix();
 			}
 			context.getMatrices().popMatrix();
@@ -473,13 +476,13 @@ public class HoofprintScreen extends Screen {
 	}
 
 	@Override
-	public boolean charTyped(char chr, int modifiers) {
+	public boolean charTyped(CharInput event) {
 		if (editingLandmark != null) {
 			StringBuilder editing = editingStyle ? landmarkStyle : landmarkName;
-			editing.append(chr);
+			editing.append(event.asString());
 			updateEdited();
 		}
-		return super.charTyped(chr, modifiers);
+		return super.charTyped(event);
 	}
 
 	@Override
@@ -489,9 +492,9 @@ public class HoofprintScreen extends Screen {
 	}
 
 	@Override
-	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+	public boolean keyPressed(KeyInput event) {
 		if (editingLandmark != null) {
-			switch (keyCode) {
+			switch (event.getKeycode()) {
 				case GLFW.GLFW_KEY_ESCAPE -> { // discard landmark
 					client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT, 2.0F));
 					editingLandmark = null;
@@ -511,16 +514,16 @@ public class HoofprintScreen extends Screen {
 					updateEdited();
 				}
 				default -> {
-					return super.keyPressed(keyCode, scanCode, modifiers);
+					return super.keyPressed(event);
 				}
 			}
 			return true;
 		}
-		if (Hoofprint.OPEN_MAP.matchesKey(keyCode, scanCode)) {
+		if (Hoofprint.OPEN_MAP.matchesKey(event)) {
 			close();
 			return true;
 		}
-		switch (keyCode) {
+		switch (event.getKeycode()) {
 			case GLFW.GLFW_KEY_LEFT_ALT -> {
 				if (!inspectMode) {
 					client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_SPYGLASS_USE, 1.0F));
@@ -565,7 +568,7 @@ public class HoofprintScreen extends Screen {
 				if (regKeys.contains(dim)) changeDim(regKeys.get((regKeys.indexOf(dim) + 1) % regKeys.size()));
 			}
 			default -> {
-				return super.keyPressed(keyCode, scanCode, modifiers);
+				return super.keyPressed(event);
 			}
 		}
 		return true;
@@ -582,29 +585,29 @@ public class HoofprintScreen extends Screen {
 	}
 
 	@Override
-	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
-		switch (keyCode) {
+	public boolean keyReleased(KeyInput event) {
+		switch (event.getKeycode()) {
 			case GLFW.GLFW_KEY_LEFT_ALT -> {
 				client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.ITEM_SPYGLASS_USE, 0.8F));
 				inspectMode = false;
 			}
 			default -> {
-				return super.keyReleased(keyCode, scanCode, modifiers);
+				return super.keyReleased(event);
 			}
 		}
 		return true;
 	}
 
 	@Override
-	public boolean mouseClicked(double mouseX, double mouseY, int button) {
-		if (button == GLFW.GLFW_MOUSE_BUTTON_3) { // easter egg: knock
+	public boolean mouseClicked(Click event, boolean doubleClick) {
+		if (event.button() == GLFW.GLFW_MOUSE_BUTTON_3) { // easter egg: knock
 			if (!ifTerrainUnderCursor((block, biome, biomeId, y, lightLevel, waterDepth, waterLight) -> {
 				SoundEvent hit = block.getDefaultState().getFluidState().getFluid().getBucketFillSound().orElse(block.getDefaultState().getSoundGroup().getHitSound());
 				client.getSoundManager().play(PositionedSoundInstance.master(hit, 1.0F, 0.3F));
 			})) {
 				client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.BLOCK_HANGING_ROOTS_HIT, 1.0F, 0.3F));
 			}
-		} else if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
+		} else if (event.button() == GLFW.GLFW_MOUSE_BUTTON_2) {
 			if (editingLandmark != null) { // discard
 				editingLandmark = null;
 				return true;
@@ -636,10 +639,10 @@ public class HoofprintScreen extends Screen {
 			updateEdited();
 			SoundEvent placeSound = Optional.ofNullable(editingLandmark.get(LandmarkComponentTypes.STACK)).filter(s -> s.getItem() instanceof BlockItem).map(s -> ((BlockItem) s.getItem()).getBlock()).map(b -> b.getDefaultState().getFluidState().getFluid().getBucketFillSound().orElse(b.getDefaultState().getSoundGroup().getPlaceSound())).orElse(SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT);
 			client.getSoundManager().play(PositionedSoundInstance.master(placeSound, 1.2F));
-			if (hasShiftDown()) saveLandmark();
+			if (event.hasShift()) saveLandmark();
 			return true;
 		}
-		return super.mouseClicked(mouseX, mouseY, button);
+		return super.mouseClicked(event, doubleClick);
 	}
 
 	@Override
@@ -670,10 +673,10 @@ public class HoofprintScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+	public boolean mouseDragged(Click event, double deltaX, double deltaY) {
 		centreX -= deltaX / getScaleFactor();
 		centreZ -= deltaY / getScaleFactor();
-		return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+		return super.mouseDragged(event, deltaX, deltaY);
 	}
 
 	double worldXToRenderX(double worldX) {

@@ -13,7 +13,8 @@ base.archivesName = project.slug
 
 repositories {
 	mavenLocal()
-	maven { url "https://repo.sleeping.town/" }
+	maven { url = "https://repo.sleeping.town/" }
+	maven { url = "https://repo.codemc.io/repository/relativitymc/" }
 }
 
 dependencies {
@@ -49,6 +50,11 @@ processResources {
 	inputs.properties(meta)
 	filesMatching("*.mod.json") { expand(meta) }
 	filesMatching("META-INF/*mods.toml") { expand(meta) }
+}
+
+loom {
+	useIntermediateMappings = true
+	intermediaryUrl = 'https://repo.codemc.io/repository/relativitymc/org/relativitymc/intermediary/%1$s/intermediary-%1$s-v2.jar'
 }
 
 tasks.withType(JavaCompile).configureEach {
