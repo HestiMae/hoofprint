@@ -30,7 +30,7 @@ public class Hoofprint implements ClientModInitializer {
 		WorldSummary.enableStructures();
 		ClientTickEvents.END_CLIENT_TICK.register((c) -> {
 			while (OPEN_MAP.wasPressed()) {
-				c.setScreen(new HoofprintScreen());
+				c.guiManager.setScreen(new HoofprintScreen());
 			}
 		});
 		ClientTickEvents.END_LEVEL_TICK.register((c) -> {
